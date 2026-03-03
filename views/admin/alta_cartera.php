@@ -6,7 +6,7 @@ include __DIR__ . '/../layouts/header.php';
 
 <div class="dashboard-container">
     <div class="page-header">
-        <h1>Registro de Nueva Cartera - <?php echo ucfirst($tipo); ?></h1>
+        <h1>Registro de Nueva Tarjeta - <?php echo ucfirst($tipo); ?></h1>
         <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=carteras" class="btn btn-secondary">
             ← Volver
         </a>
@@ -14,6 +14,15 @@ include __DIR__ . '/../layouts/header.php';
 
     <div class="form-container">
         <form method="POST" action="">
+            <div class="form-group">
+                <label>Cartera</label>
+                <select name="cartera_id" required>
+                    <option value="">-- Seleccionar --</option>
+                    <?php foreach (obtenerTodasLasCarteras() as $c): ?>
+                        <option value="<?php echo $c['id']; ?>"><?php echo htmlspecialchars($c['nombre']); ?> (ID <?php echo $c['id']; ?>)</option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             <?php if ($tipo === 'semanal'): ?>
                 <!-- Formulario Cartera Semanal -->
                 <h2>Datos del Préstamo</h2>
@@ -95,12 +104,7 @@ include __DIR__ . '/../layouts/header.php';
                     <div class="form-group">
                         <label>Promotor (Trabajador)</label>
                         <select name="promotor_id" required>
-                            <?php 
-                            global $usuarios_simulados;
-                            $trabajadores = array_filter($usuarios_simulados, function($u) {
-                                return $u['rol'] === 'trabajador';
-                            });
-                            foreach ($trabajadores as $trab): ?>
+                            <?php foreach (obtenerTodosTrabajadores() as $trab): ?>
                                 <option value="<?php echo $trab['id']; ?>">
                                     <?php echo htmlspecialchars($trab['nombre']); ?>
                                 </option>
@@ -108,7 +112,7 @@ include __DIR__ . '/../layouts/header.php';
                         </select>
                     </div>
                 </div>
-                
+
             <?php elseif ($tipo === 'diaria'): ?>
                 <!-- Formulario Cartera Diaria -->
                 <h2>Datos del Préstamo</h2>
@@ -263,12 +267,7 @@ include __DIR__ . '/../layouts/header.php';
                     <div class="form-group">
                         <label>Promotor (Trabajador)</label>
                         <select name="promotor_id" required>
-                            <?php 
-                            global $usuarios_simulados;
-                            $trabajadores = array_filter($usuarios_simulados, function($u) {
-                                return $u['rol'] === 'trabajador';
-                            });
-                            foreach ($trabajadores as $trab): ?>
+                            <?php foreach (obtenerTodosTrabajadores() as $trab): ?>
                                 <option value="<?php echo $trab['id']; ?>">
                                     <?php echo htmlspecialchars($trab['nombre']); ?>
                                 </option>

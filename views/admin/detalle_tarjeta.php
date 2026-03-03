@@ -12,12 +12,7 @@ if (isset($tarjeta['pagos'])) {
 $pendiente = $total - $cobrado;
 $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
 
-global $usuarios_simulados;
-$trabajador = array_filter($usuarios_simulados, function($u) use ($tarjeta) {
-    return $u['id'] == $tarjeta['trabajador_id'];
-});
-$trabajador = reset($trabajador);
-$nombre_trab = $trabajador ? $trabajador['nombre'] : "ID " . $tarjeta['trabajador_id'];
+$nombre_trab = $tarjeta['trabajador_nombre'] ?? obtenerNombreUsuarioPorId($tarjeta['trabajador_id'] ?? 0);
 ?>
 
 <div class="dashboard-container">
@@ -44,7 +39,8 @@ $nombre_trab = $trabajador ? $trabajador['nombre'] : "ID " . $tarjeta['trabajado
         </div>
         <div class="card-body">
             <div class="info-grid">
-                <div><strong>Trabajador:</strong> <?php echo htmlspecialchars($nombre_trab); ?></div>
+                <div><strong>Cartera:</strong> <?php echo htmlspecialchars($tarjeta['cartera_nombre'] ?? ''); ?></div>
+                <div><strong>Trabajador/Promotor:</strong> <?php echo htmlspecialchars($nombre_trab); ?></div>
                 <?php if ($tarjeta['tipo'] === 'antigua_semanal'): ?>
                     <div><strong>Lugar:</strong> <?php echo htmlspecialchars($tarjeta['lugar']); ?></div>
                     <div><strong>Fecha:</strong> <?php echo htmlspecialchars($tarjeta['fecha']); ?></div>
@@ -52,32 +48,20 @@ $nombre_trab = $trabajador ? $trabajador['nombre'] : "ID " . $tarjeta['trabajado
                     <div><strong>Teléfono:</strong> <?php echo htmlspecialchars($tarjeta['telefono']); ?></div>
                     <div><strong>Dirección:</strong> <?php echo htmlspecialchars($tarjeta['direccion']); ?></div>
                     <div><strong>Colonia:</strong> <?php echo htmlspecialchars($tarjeta['colonia']); ?></div>
-                    <div><strong>Cantidad Préstamo:</strong> $<?php echo number_format($tarjeta['cantidad_prestamo'], 2); ?></div>
-                    <div><strong>Cargo del Préstamo:</strong> $<?php echo number_format($tarjeta['cargo_prestamo'], 2); ?></div>
-                    <div><strong>Total del Préstamo:</strong> $<?php echo number_format($tarjeta['total_prestamo'], 2); ?> 
-                        <small>(Calculado: <?php echo number_format($tarjeta['cantidad_prestamo'], 2); ?> + <?php echo number_format($tarjeta['cargo_prestamo'], 2); ?>)</small>
-                    </div>
-                    <div><strong>Pago Semanal:</strong> $<?php echo number_format($tarjeta['pago_semanal'], 2); ?></div>
-                    <div><strong>Semanas a Pagar:</strong> <?php echo $tarjeta['semanas_pagar']; ?> 
-                        <small>(Calculado: <?php echo number_format($tarjeta['total_prestamo'], 2); ?> / <?php echo number_format($tarjeta['pago_semanal'], 2); ?>)</small>
-                    </div>
                     <div><strong>Día de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['dia_cobro']); ?></div>
-                    <?php 
-                    global $usuarios_simulados;
-                    $promotor = array_filter($usuarios_simulados, function($u) use ($tarjeta) {
-                        return $u['id'] == ($tarjeta['promotor_id'] ?? 0);
-                    });
-                    $promotor = reset($promotor);
-                    $nombre_promotor = $promotor ? $promotor['nombre'] : 'N/A';
-                    ?>
-                    <div><strong>Promotor:</strong> <?php echo htmlspecialchars($nombre_promotor); ?></div>
+                    <div><strong>Cantidad del Préstamo:</strong> $<?php echo number_format($tarjeta['cantidad_prestamo'], 2); ?></div>
+                    <div><strong>Cargo del Préstamo:</strong> $<?php echo number_format($tarjeta['cargo_prestamo'], 2); ?></div>
+                    <div><strong>Total del Préstamo:</strong> $<?php echo number_format($tarjeta['total_prestamo'], 2); ?></div>
+                    <div><strong>Semanas a Pagar:</strong> <?php echo $tarjeta['semanas_pagar']; ?></div>
+                    <div><strong>Pago Semanal:</strong> $<?php echo number_format($tarjeta['pago_semanal'], 2); ?></div>
                 <?php elseif ($tarjeta['tipo'] === 'antigua_diaria'): ?>
                     <div><strong>Nombre:</strong> <?php echo htmlspecialchars($tarjeta['nombre'] ?? 'N/A'); ?></div>
-                    <div><strong>Cuota Diaria:</strong> $<?php echo number_format($tarjeta['cuota_diaria'], 2); ?></div>
-                    <div><strong>Fecha:</strong> <?php echo htmlspecialchars($tarjeta['fecha'] ?? 'N/A'); ?></div>
-                    <div><strong>Dirección:</strong> <?php echo htmlspecialchars($tarjeta['direccion'] ?? 'N/A'); ?></div>
                     <div><strong>Teléfono:</strong> <?php echo htmlspecialchars($tarjeta['telefono'] ?? 'N/A'); ?></div>
-                    <div><strong>Valor Total:</strong> $<?php echo number_format($tarjeta['valor'] ?? 0, 2); ?></div>
+                    <div><strong>Dirección:</strong> <?php echo htmlspecialchars($tarjeta['direccion'] ?? 'N/A'); ?></div>
+                    <div><strong>Fecha:</strong> <?php echo htmlspecialchars($tarjeta['fecha'] ?? 'N/A'); ?></div>
+                    <div><strong>Valor Total:</strong> $<?php echo number_format($tarjeta['total_prestamo'], 2); ?></div>
+                    <div><strong>Cuota Diaria:</strong> $<?php echo number_format($tarjeta['cuota_diaria'], 2); ?></div>
+                    <div><strong>Días a Pagar:</strong> <?php echo $tarjeta['dias_pagar']; ?></div>
                 <?php else: ?>
                     <div><strong>Fecha:</strong> <?php echo htmlspecialchars($tarjeta['fecha']); ?></div>
                     <div><strong>Lugar:</strong> <?php echo htmlspecialchars($tarjeta['lugar']); ?></div>
@@ -92,21 +76,10 @@ $nombre_trab = $trabajador ? $trabajador['nombre'] : "ID " . $tarjeta['trabajado
                     <div><strong>Aval Colonia:</strong> <?php echo htmlspecialchars($tarjeta['aval_colonia']); ?></div>
                     <div><strong>Aval Teléfono:</strong> <?php echo htmlspecialchars($tarjeta['aval_telefono']); ?></div>
                     <div><strong>Préstamo:</strong> $<?php echo number_format($tarjeta['prestamo'], 2); ?></div>
-                    <div><strong>Cuota del Préstamo:</strong> $<?php echo number_format($tarjeta['cuota_prestamo'], 2); ?></div>
                     <div><strong>Total del Préstamo:</strong> $<?php echo number_format($tarjeta['total_prestamo'], 2); ?></div>
-                    <div><strong>Pago:</strong> $<?php echo number_format($tarjeta['pago'], 2); ?></div>
+                    <div><strong>Pago Diario:</strong> $<?php echo number_format($tarjeta['pago'], 2); ?></div>
                     <div><strong>Días a Pagar:</strong> <?php echo $tarjeta['dias_pagar']; ?></div>
-                    <div><strong>Día de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['dia_cobro']); ?></div>
                     <div><strong>Hora de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['hora_cobro']); ?></div>
-                    <?php 
-                    global $usuarios_simulados;
-                    $promotor = array_filter($usuarios_simulados, function($u) use ($tarjeta) {
-                        return $u['id'] == ($tarjeta['promotor_id'] ?? 0);
-                    });
-                    $promotor = reset($promotor);
-                    $nombre_promotor = $promotor ? $promotor['nombre'] : 'N/A';
-                    ?>
-                    <div><strong>Promotor:</strong> <?php echo htmlspecialchars($nombre_promotor); ?></div>
                 <?php endif; ?>
             </div>
         </div>
@@ -152,23 +125,28 @@ $nombre_trab = $trabajador ? $trabajador['nombre'] : "ID " . $tarjeta['trabajado
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Número de Día</th>
-                            <th>Fecha</th>
+                            <th>Período</th>
+                            <th>Fecha de Cobro</th>
                             <th>Pago Realizado</th>
                             <th>Saldo Pendiente</th>
-                            <th>Firma del Empleado</th>
+                            <th>Estado</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php 
-                        $semanas = $tarjeta['semanas_pagar'] ?? ($tarjeta['dias_pagar'] ?? 12);
-                        $pago_unitario = $tarjeta['pago_semanal'] ?? ($tarjeta['cuota_diaria'] ?? ($tarjeta['pago'] ?? 0));
+                        $is_semanal = $tarjeta['tipo'] === 'antigua_semanal';
+                        $semanas = $tarjeta['semanas_pagar'] ?: ($tarjeta['dias_pagar'] ?: 12);
+                        $pago_unitario = $tarjeta['pago_semanal'] ?: ($tarjeta['cuota_diaria'] ?: ($tarjeta['pago'] ?: 0));
                         
                         for ($i = 1; $i <= $semanas; $i++): 
+                            // Para SEMANAL, buscar en día múltiplo de 7 (día 7, 14, 21, etc.)
+                            $dia_buscar = $is_semanal ? ($i * 7) : $i;
+                            $etiqueta_periodo = $is_semanal ? "Semana $i" : "Día $i";
+                            
                             $pago_existente = null;
                             if (isset($tarjeta['pagos'])) {
                                 foreach ($tarjeta['pagos'] as $p) {
-                                    if ($p['dia'] == $i) {
+                                    if ($p['dia'] == $dia_buscar) {
                                         $pago_existente = $p;
                                         break;
                                     }
@@ -178,18 +156,18 @@ $nombre_trab = $trabajador ? $trabajador['nombre'] : "ID " . $tarjeta['trabajado
                             $fecha_pago = $pago_existente ? $pago_existente['fecha'] : 'Pendiente';
                             $monto_pago = $pago_existente ? $pago_existente['pago'] : 0;
                             $saldo = $pago_existente ? $pago_existente['saldo'] : ($total - ($i - 1) * $pago_unitario);
-                            $firmado = $pago_existente ? $pago_existente['firma'] : false;
+                            $pago_registrado = ($pago_existente && $monto_pago > 0);
                         ?>
-                        <tr class="<?php echo $monto_pago > 0 ? 'row-paid' : ''; ?>">
-                            <td><?php echo $i; ?></td>
+                        <tr class="<?php echo $pago_registrado ? 'row-paid' : ''; ?>">
+                            <td><?php echo htmlspecialchars($etiqueta_periodo); ?></td>
                             <td><?php echo htmlspecialchars($fecha_pago); ?></td>
-                            <td class="<?php echo $monto_pago > 0 ? 'text-success' : ''; ?>">
+                            <td class="<?php echo $pago_registrado ? 'text-success' : ''; ?>">
                                 $<?php echo number_format($monto_pago, 2); ?>
                             </td>
                             <td>$<?php echo number_format($saldo, 2); ?></td>
                             <td>
-                                <?php if ($firmado): ?>
-                                    <span class="badge badge-success">✓ Firmado</span>
+                                <?php if ($pago_registrado): ?>
+                                    <span class="badge badge-success">✓ Pagado</span>
                                 <?php else: ?>
                                     <span class="badge badge-secondary">Pendiente</span>
                                 <?php endif; ?>

@@ -1,8 +1,13 @@
-# Sistema de Cobranza - Documentación
+# 💰 Sistema de Cobranza - Producción v1.0
 
 ## 📋 Descripción General
 
-Sistema web para gestión de cobranza de una financiera, desarrollado con PHP estructurado (estilo MVC ligero), HTML, CSS y JavaScript vanilla. El sistema utiliza **datos simulados** (arrays en PHP) y está diseñado para ser fácilmente migrable a MySQL en el futuro.
+Sistema web profesional para gestión de cobranza de financieras, desarrollado con PHP 8+, MySQL/MariaDB, HTML5, CSS3 y JavaScript vanilla. Arquitectura MVC ligera, optimizado para móviles con interfaz táctil completa.
+
+**Estado**: ✅ Listo para Producción  
+**Versión**: 1.0.0  
+**Fecha**: Marzo 2026  
+**Timezone**: America/Mexico_City
 
 ## 🏗️ Arquitectura del Sistema
 

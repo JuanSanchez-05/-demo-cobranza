@@ -10,8 +10,9 @@ RewriteCond %{REQUEST_URI} !^/demo-cobranza/assets/
 RewriteCond %{REQUEST_URI} !^/demo-cobranza/index.php
 
 # Configuración de PHP
-php_flag display_errors On
-php_value error_reporting E_ALL
+# Desactivar display_errors en entorno demo para evitar mostrar errores al usuario
+php_flag display_errors Off
+php_value error_reporting 0
 
 # Configuración de seguridad básica
 <FilesMatch "\.(htaccess|htpasswd|ini|log|sh)$">

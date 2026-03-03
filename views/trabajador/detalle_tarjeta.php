@@ -1,4 +1,5 @@
 <?php
+// Version 2.5 - CSS simplificado sin ::before, tabla normal
 $titulo = 'Detalle de Tarjeta - Trabajador';
 include __DIR__ . '/../layouts/header.php';
 
@@ -21,8 +22,24 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
         </a>
     </div>
 
-    <?php if (isset($_GET['mensaje']) && $_GET['mensaje'] === 'pago_registrado'): ?>
-        <div class="alert alert-success">Pago registrado exitosamente</div>
+    <?php if (isset($_GET['mensaje'])): ?>
+        <?php if ($_GET['mensaje'] === 'pago_registrado'): ?>
+            <div class="alert alert-success">✓ Pago registrado exitosamente</div>
+        <?php elseif ($_GET['mensaje'] === 'error_pago'): ?>
+            <div class="alert alert-warning">⚠ Este pago ya fue registrado anteriormente</div>
+        <?php elseif ($_GET['mensaje'] === 'error_dia'): ?>
+            <div class="alert alert-danger">✗ Error al procesar el pago</div>
+        <?php endif; ?>
+    <?php endif; ?>
+
+    <?php if (isset($_GET['error'])): ?>
+        <?php if ($_GET['error'] === 'datos_invalidos'): ?>
+            <div class="alert alert-danger">✗ Datos inválidos. Verifica el día y el monto del pago.</div>
+        <?php elseif ($_GET['error'] === 'error_pago'): ?>
+            <div class="alert alert-danger">✗ Error al registrar el pago. Intenta nuevamente.</div>
+        <?php elseif ($_GET['error'] === 'orden_pago_invalido'): ?>
+            <div class="alert alert-warning">⚠ Debes registrar los pagos en orden. Primero completa el siguiente período pendiente.</div>
+        <?php endif; ?>
     <?php endif; ?>
 
     <!-- Resumen -->
@@ -75,14 +92,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                     <div><strong>Pago Semanal:</strong> $<?php echo number_format($tarjeta['pago_semanal'], 2); ?></div>
                     <div><strong>Semanas a Pagar:</strong> <?php echo $tarjeta['semanas_pagar']; ?></div>
                     <div><strong>Día de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['dia_cobro']); ?></div>
-                    <?php 
-                    global $usuarios_simulados;
-                    $promotor = array_filter($usuarios_simulados, function($u) use ($tarjeta) {
-                        return $u['id'] == ($tarjeta['promotor_id'] ?? 0);
-                    });
-                    $promotor = reset($promotor);
-                    $nombre_promotor = $promotor ? $promotor['nombre'] : 'N/A';
-                    ?>
+                    <?php $nombre_promotor = obtenerNombreUsuarioPorId($tarjeta['promotor_id'] ?? 0); ?>
                     <div><strong>Promotor:</strong> <?php echo htmlspecialchars($nombre_promotor); ?></div>
                 </div>
             <?php elseif ($tarjeta['tipo'] === 'antigua_diaria'): ?>
@@ -109,20 +119,12 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                     <div><strong>Aval Colonia:</strong> <?php echo htmlspecialchars($tarjeta['aval_colonia'] ?? 'N/A'); ?></div>
                     <div><strong>Aval Teléfono:</strong> <?php echo htmlspecialchars($tarjeta['aval_telefono'] ?? 'N/A'); ?></div>
                     <div><strong>Préstamo:</strong> $<?php echo number_format($tarjeta['prestamo'] ?? 0, 2); ?></div>
-                    <div><strong>Cuota del Préstamo:</strong> $<?php echo number_format($tarjeta['cuota_prestamo'] ?? 0, 2); ?></div>
                     <div><strong>Total del Préstamo:</strong> $<?php echo number_format($tarjeta['total_prestamo'], 2); ?></div>
                     <div><strong>Pago:</strong> $<?php echo number_format($tarjeta['pago'] ?? 0, 2); ?></div>
                     <div><strong>Días a Pagar:</strong> <?php echo $tarjeta['dias_pagar'] ?? 'N/A'; ?></div>
                     <div><strong>Día de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['dia_cobro']); ?></div>
                     <div><strong>Hora de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['hora_cobro']); ?></div>
-                    <?php 
-                    global $usuarios_simulados;
-                    $promotor = array_filter($usuarios_simulados, function($u) use ($tarjeta) {
-                        return $u['id'] == ($tarjeta['promotor_id'] ?? 0);
-                    });
-                    $promotor = reset($promotor);
-                    $nombre_promotor = $promotor ? $promotor['nombre'] : 'N/A';
-                    ?>
+                    <?php $nombre_promotor = obtenerNombreUsuarioPorId($tarjeta['promotor_id'] ?? 0); ?>
                     <div><strong>Promotor:</strong> <?php echo htmlspecialchars($nombre_promotor); ?></div>
                 </div>
             <?php endif; ?>
@@ -139,24 +141,36 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>Número de Día</th>
+                            <th><?php echo ($tarjeta['tipo'] === 'antigua_semanal') ? 'Período' : 'Número de Día'; ?></th>
                             <th>Fecha</th>
                             <th>Pago Realizado</th>
                             <th>Saldo Pendiente</th>
-                            <th>Firma del Empleado</th>
                             <th>Acción</th>
                         </tr>
                     </thead>
                     <tbody>
+                        <!-- DEBUG: Tabla con 5 columnas - Version 2.2 -->
                         <?php 
-                        $semanas = $tarjeta['semanas_pagar'] ?? ($tarjeta['dias_pagar'] ?? 12);
-                        $pago_unitario = $tarjeta['pago_semanal'] ?? ($tarjeta['cuota_diaria'] ?? ($tarjeta['pago'] ?? 0));
+                        $is_semanal = ($tarjeta['tipo'] === 'antigua_semanal');
+                        $semanas = $tarjeta['semanas_pagar'] ?: ($tarjeta['dias_pagar'] ?: 12);
                         
+                        // Calcular el pago unitario según el tipo de tarjeta
+                        if ($tarjeta['tipo'] === 'antigua_semanal') {
+                            $pago_unitario = floatval($tarjeta['pago_semanal'] ?? 0);
+                        } elseif ($tarjeta['tipo'] === 'antigua_diaria') {
+                            $pago_unitario = floatval($tarjeta['cuota_diaria'] ?? 0);
+                        } else { // nueva
+                            $pago_unitario = floatval($tarjeta['pago'] ?? 0);
+                        }
+                        
+                        $primer_pendiente_habilitado = false;
                         for ($i = 1; $i <= $semanas; $i++): 
+                            $dia_buscar = $is_semanal ? ($i * 7) : $i;
+                            $etiqueta_periodo = $is_semanal ? "Semana $i" : "Día $i";
                             $pago_existente = null;
                             if (isset($tarjeta['pagos'])) {
                                 foreach ($tarjeta['pagos'] as $p) {
-                                    if ($p['dia'] == $i) {
+                                    if ($p['dia'] == $dia_buscar) {
                                         $pago_existente = $p;
                                         break;
                                     }
@@ -164,34 +178,49 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             }
                             
                             $fecha_pago = $pago_existente ? $pago_existente['fecha'] : 'Pendiente';
-                            $monto_pago = $pago_existente ? $pago_existente['pago'] : 0;
-                            $saldo = $pago_existente ? $pago_existente['saldo'] : ($total - ($i - 1) * $pago_unitario);
-                            $firmado = $pago_existente ? $pago_existente['firma'] : false;
+                            $monto_pago = $pago_existente ? floatval($pago_existente['pago']) : 0;
+                            $pago_registrado = ($pago_existente && $monto_pago > 0);
+
+                            $puede_registrar = false;
+                            if (!$pago_registrado && !$primer_pendiente_habilitado) {
+                                $puede_registrar = true;
+                                $primer_pendiente_habilitado = true;
+                            }
+                            
+                            // El saldo en BD representa lo que se debe ANTES de pagar ese día
+                            // El saldo pendiente a mostrar es lo que queda DESPUÉS de pagar
+                            $saldo_antes = $pago_existente ? floatval($pago_existente['saldo']) : max(0, $total - ($i - 1) * $pago_unitario);
+                            $saldo_despues = max(0, $saldo_antes - ($pago_registrado ? $monto_pago : $pago_unitario));
                         ?>
-                        <tr class="<?php echo $monto_pago > 0 ? 'row-paid' : ''; ?>">
-                            <td><?php echo $i; ?></td>
+                        <tr class="<?php echo $pago_registrado ? 'row-paid' : ''; ?>">
+                            <!-- Columna 1: Número de Día -->
+                            <td><?php echo htmlspecialchars($etiqueta_periodo); ?></td>
+                            <!-- Columna 2: Fecha -->
                             <td><?php echo htmlspecialchars($fecha_pago); ?></td>
-                            <td class="<?php echo $monto_pago > 0 ? 'text-success' : ''; ?>">
+                            <!-- Columna 3: Pago Realizado -->
+                            <td class="<?php echo $pago_registrado ? 'text-success' : ''; ?>">
                                 $<?php echo number_format($monto_pago, 2); ?>
                             </td>
-                            <td>$<?php echo number_format($saldo, 2); ?></td>
+                            <!-- Columna 4: Saldo Pendiente -->
+                            <td>$<?php echo number_format($saldo_despues, 2); ?></td>
+                            <!-- Columna 5: Acción -->
                             <td>
-                                <?php if ($firmado): ?>
-                                    <span class="badge badge-success">✓ Firmado</span>
-                                <?php else: ?>
-                                    <span class="badge badge-secondary">Pendiente</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php if (!$firmado): ?>
-                                    <form method="POST" style="display: inline;">
-                                        <input type="hidden" name="dia" value="<?php echo $i; ?>">
-                                        <button type="submit" name="registrar_pago" class="btn btn-sm btn-success">
-                                            Registrar Pago
+                                <?php if (!$pago_registrado): ?>
+                                    <?php if ($puede_registrar): ?>
+                                        <form method="POST" style="display: inline;">
+                                            <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
+                                            <input type="hidden" name="monto" value="<?php echo $pago_unitario; ?>">
+                                            <button type="submit" name="registrar_pago" class="btn btn-sm btn-success">
+                                                Registrar Pago
+                                            </button>
+                                        </form>
+                                    <?php else: ?>
+                                        <button type="button" class="btn btn-sm btn-secondary" disabled>
+                                            Bloqueado
                                         </button>
-                                    </form>
+                                    <?php endif; ?>
                                 <?php else: ?>
-                                    <span class="text-muted">Ya registrado</span>
+                                    <span class="text-muted">✓ Pagado</span>
                                 <?php endif; ?>
                             </td>
                         </tr>

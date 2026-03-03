@@ -2,13 +2,9 @@
 $titulo = 'Detalle de Cartera - Administrador';
 include __DIR__ . '/../layouts/header.php';
 
-global $usuarios_simulados;
-$trabajador = array_filter($usuarios_simulados, function($u) use ($cartera) {
-    return $u['id'] == $cartera['trabajador_id'];
-});
-$trabajador = reset($trabajador);
-$nombre_trab = $trabajador ? $trabajador['nombre'] : "ID " . $cartera['trabajador_id'];
+$nombre_trab = $cartera['trabajador_nombre'] ?? ('ID ' . $cartera['trabajador_id']);
 $tarjetas = isset($cartera['tarjetas']) ? $cartera['tarjetas'] : [];
+$completadas = isset($cartera['completadas']) ? $cartera['completadas'] : [];
 
 // Calcular estadísticas de la cartera
 $total_cartera = 0;
@@ -179,6 +175,7 @@ $porcentaje_cartera = $total_cartera > 0 ? ($cobrado_cartera / $total_cartera) *
                             <td>
                                 <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=detalle_tarjeta&id=<?php echo $tarjeta['id']; ?>" 
                                    class="btn btn-sm btn-primary">Ver Detalle</a>
+                                <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=completar_tarjeta&id=<?php echo $tarjeta['id']; ?>" class="btn btn-sm btn-success" onclick="return confirm('Marcar como completada?')">Marcar completada</a>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -193,6 +190,39 @@ $porcentaje_cartera = $total_cartera > 0 ? ($cobrado_cartera / $total_cartera) *
     </div>
 
 </div>
+
+    <!-- Tarjetas completadas -->
+    <div class="section">
+        <h2>Tarjetas Completadas</h2>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Cliente</th>
+                        <th>Teléfono</th>
+                        <th>Total Préstamo</th>
+                        <th>Fecha Completada</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (count($completadas) > 0): ?>
+                        <?php foreach ($completadas as $ct): ?>
+                            <tr>
+                                <td><?php echo $ct['id']; ?></td>
+                                <td><?php echo htmlspecialchars($ct['nombre'] ?? 'N/A'); ?></td>
+                                <td><?php echo htmlspecialchars($ct['telefono'] ?? 'N/A'); ?></td>
+                                <td>$<?php echo number_format($ct['total_prestamo'] ?? ($ct['valor'] ?? 0), 2); ?></td>
+                                <td><?php echo htmlspecialchars($ct['fecha_completada'] ?? ''); ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr><td colspan="5" class="text-center">No hay tarjetas completadas</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
 
 <?php include __DIR__ . '/../layouts/footer.php'; ?>
 

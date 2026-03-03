@@ -1,6 +1,7 @@
 /* ============================================
    SISTEMA PROFESIONAL DE COBRANZA
    Diseño gráfico avanzado y atractivo
+   Version: 2.7 - Optimizado para móvil
    ============================================ */
 :root {
     /* Paleta monocromática blanco y negro */
@@ -96,7 +97,7 @@ html {
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
     color: var(--text-primary);
     background: linear-gradient(to bottom, #f8f9fa, #ffffff);
     background-attachment: fixed;
@@ -105,6 +106,20 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     letter-spacing: -0.01em;
+}
+
+/* Enlaces y elementos interactivos táctiles */
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: var(--transition);
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+}
+
+a:hover {
+    color: var(--primary-hover);
 }
 
 /* ============================================
@@ -184,6 +199,17 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.3);
     position: relative;
     overflow: hidden;
+    max-width: 90%;
+    margin: 0 auto;
+}
+
+@media (max-width: 480px) {
+    .login-box {
+        padding: 32px 24px;
+    }
+    .login-container {
+        padding: 20px;
+    }
 }
 
 .login-box::before {
@@ -291,10 +317,17 @@ body {
     display: none;
     background: none;
     border: none;
-    font-size: 24px;
-    padding: 16px;
+    font-size: 28px;
+    padding: 12px;
     cursor: pointer;
     color: var(--text-primary);
+    transition: transform 0.3s ease;
+    min-height: 48px;
+    min-width: 48px;
+}
+
+.navbar-toggle.active {
+    transform: rotate(90deg);
 }
 
 
@@ -338,11 +371,12 @@ body {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 10px 18px;
+    padding: 12px 20px;
     border-radius: var(--radius-lg);
     transition: var(--transition);
     background: linear-gradient(135deg, var(--bg-secondary), var(--white));
     border: 1px solid var(--border-color);
+    min-height: 48px;
 }
 
 .user-info::before {
@@ -405,14 +439,15 @@ body {
 .form-group select,
 .form-group textarea {
     width: 100%;
-    padding: 14px 18px;
+    padding: 16px 18px;
     border: 2px solid var(--border-color);
     border-radius: var(--radius-lg);
-    font-size: 15px;
+    font-size: 16px;
     transition: var(--transition);
     background: var(--bg-primary);
     color: var(--text-primary);
     font-family: inherit;
+    min-height: 48px;
 }
 
 .form-group input:hover,
@@ -452,10 +487,10 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 14px 28px;
+    padding: 16px 32px;
     border: 2px solid transparent;
     border-radius: var(--radius-lg);
-    font-size: 13px;
+    font-size: 15px;
     font-weight: 700;
     cursor: pointer;
     text-decoration: none;
@@ -468,6 +503,8 @@ body {
     position: relative;
     overflow: hidden;
     box-shadow: var(--shadow-sm);
+    min-height: 48px;
+    min-width: 48px;
 }
 
 .btn::before {
@@ -571,8 +608,10 @@ body {
 }
 
 .btn-sm {
-    padding: 10px 20px;
-    font-size: 11px;
+    padding: 14px 24px;
+    font-size: 14px;
+    min-height: 44px;
+    min-width: 44px;
 }
 
 /* ============================================
@@ -610,6 +649,18 @@ body {
     color: var(--text-primary);
     border-color: var(--status-cobrado);
     background: linear-gradient(135deg, #f0fff4, var(--white));
+}
+
+.alert-warning {
+    color: var(--text-primary);
+    border-color: #f59e0b;
+    background: linear-gradient(135deg, #fffbeb, var(--white));
+}
+
+.alert-danger {
+    color: var(--text-primary);
+    border-color: var(--status-vencido);
+    background: linear-gradient(135deg, #fff5f5, var(--white));
 }
 
 /* ============================================
@@ -783,6 +834,162 @@ body {
     font-weight: 700;
 }
 
+/* Estilos especiales para "Total a Cobrar HOY" */
+.stat-card-highlight {
+    background: linear-gradient(135deg, var(--black), var(--gray-800));
+    color: var(--white);
+    border: 3px solid var(--gray-700);
+    transform: scale(1.02);
+}
+
+.stat-card-highlight .stat-content h3 {
+    color: var(--gray-300);
+    font-weight: 800;
+}
+
+.stat-highlight {
+    color: var(--white) !important;
+    font-size: 36px !important;
+    font-weight: 900;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.stat-subtitle {
+    color: var(--gray-400);
+    font-size: 11px;
+    font-weight: 500;
+    margin-top: 4px;
+    display: block;
+}
+
+.stat-card-highlight .stat-icon {
+    color: var(--white);
+}
+
+.stat-card-highlight:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-2xl);
+}
+
+/* ============================================
+   ESTILOS PARA LISTA DE COBROS HOY
+   ============================================ */
+.cobros-hoy-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.cobro-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px;
+    background: linear-gradient(135deg, var(--white), var(--bg-secondary));
+    border-radius: var(--radius-lg);
+    border-left: 4px solid var(--gray-400);
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition);
+}
+
+.cobro-item.cobrado {
+    border-left-color: var(--status-cobrado);
+    background: linear-gradient(135deg, var(--bg-secondary), var(--white));
+}
+
+.cobro-item.pendiente {
+    border-left-color: var(--gray-600);
+    background: linear-gradient(135deg, var(--white), var(--bg-tertiary));
+}
+
+.cobro-item:hover {
+    transform: translateX(5px);
+    box-shadow: var(--shadow-md);
+}
+
+.cobro-info {
+    flex: 1;
+}
+
+.cobro-info h4 {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--black);
+    margin-bottom: 4px;
+}
+
+.cobro-direccion {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.cobro-tipo {
+    font-size: 11px;
+    background: var(--gray-200);
+    color: var(--text-primary);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.cobro-monto {
+    text-align: center;
+    margin: 0 20px;
+}
+
+.monto {
+    display: block;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--black);
+    margin-bottom: 4px;
+}
+
+.status {
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+}
+
+.status.cobrado {
+    background: var(--status-cobrado);
+    color: var(--white);
+}
+
+.status.pendiente {
+    background: var(--gray-500);
+    color: var(--white);
+}
+
+.cobro-accion {
+    min-width: 100px;
+}
+
+.no-cobros {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
+/* Responsive para lista de cobros */
+@media (max-width: 768px) {
+    .cobro-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+    
+    .cobro-monto {
+        margin: 0;
+        text-align: left;
+    }
+}
+
 .text-warning {
     color: var(--status-pendiente);
     font-weight: 700;
@@ -941,40 +1148,47 @@ body {
 }
 
 .data-table td {
-    padding: 18px 24px;
+    padding: 20px 24px;
     border-top: 1px solid var(--border-color);
     font-size: 14px;
     color: var(--text-primary);
     vertical-align: middle;
     transition: var(--transition);
+    min-width: 80px; /* Asegurar ancho mínimo para todas las celdas */
+    display: table-cell !important; /* Forzar display correcto */
+    visibility: visible !important; /* Forzar visibilidad */
+    min-height: 48px;
+}
+
+/* Simplificar primera columna sin elementos complejos */
+.data-table td:first-child,
+.data-table th:first-child {
+    min-width: 80px;
+    text-align: center;
+    font-weight: 600;
+    padding: 18px 12px;
+}
+
+/* Asegurar que todas las celdas se comporten normalmente */
+.data-table td {
+    display: table-cell;
+    vertical-align: middle;
 }
 
 .data-table tbody tr {
     transition: var(--transition);
-    position: relative;
+    /* position: relative; eliminado para evitar problemas de layout */
 }
 
-.data-table tbody tr::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    background: var(--black);
-    transform: scaleY(0);
-    transition: transform 0.3s ease;
-}
+/* Elemento ::before eliminado completamente - causaba desplazamiento de columnas */
 
 .data-table tbody tr:hover {
     background: linear-gradient(135deg, var(--bg-secondary), var(--white));
-    transform: scale(1.01);
+    /* transform: scale(1.01); eliminado para evitar saltos */
     box-shadow: var(--shadow-sm);
 }
 
-.data-table tbody tr:hover::before {
-    transform: scaleY(1);
-}
+/* ::before hover eliminado también */
 
 .data-table tbody tr:last-child td {
     border-bottom: none;
@@ -1002,15 +1216,16 @@ body {
 .badge {
     display: inline-flex;
     align-items: center;
-    padding: 6px 14px;
+    padding: 8px 16px;
     border-radius: var(--radius-md);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.8px;
     border: 2px solid;
     box-shadow: var(--shadow-sm);
     transition: var(--transition);
+    min-height: 32px;
 }
 
 .badge:hover {
@@ -1048,7 +1263,7 @@ body {
 .progress-bar {
     position: relative;
     width: 100%;
-    height: 12px;
+    height: 20px;
     background: var(--bg-tertiary);
     border-radius: var(--radius-lg);
     overflow: hidden;
@@ -1074,7 +1289,7 @@ body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 700;
     color: var(--text-primary);
     z-index: 1;
@@ -1676,32 +1891,69 @@ body {
 }
 
 /* ============================================
-   RESPONSIVE
+   RESPONSIVE - OPTIMIZADO PARA MÓVIL
    ============================================ */
+
+/* backdrop overlay used when mobile nav is open */
+.navbar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(4px);
+    z-index: 995;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.navbar-overlay.show {
+    display: block;
+    opacity: 1;
+}
+
+/* animated collapse for mobile menu */
+.navbar-menu {
+    transition: max-height 0.4s ease, opacity 0.4s ease;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+}
+
+.navbar-menu.open {
+    max-height: 800px;
+    opacity: 1;
+}
+
+/* TABLET Y MÓVIL GRANDE (hasta 768px) */
 @media (max-width: 768px) {
+    /* Contenedor principal con padding reducido */
     .dashboard-container {
-        padding: 24px 20px 40px;
+        padding: 20px 16px 32px;
     }
     
+    /* Navbar responsive con menú colapsable */
     .navbar {
         flex-direction: column;
-        gap: 16px;
-        padding: 16px;
+        gap: 12px;
+        padding: 12px 16px;
     }
 
-    /* mostrar toggle y ocultar menú por defecto */
     .navbar-toggle {
         display: block;
         align-self: flex-end;
+        font-size: 28px;
+        padding: 8px 12px;
+        min-height: 44px;
+        min-width: 44px;
     }
 
     .navbar-menu {
         width: 100%;
         justify-content: space-between;
         padding: 16px 0;
-        display: none; /* se activa con la clase .open */
+        display: none;
         flex-direction: column;
-        gap: 12px;
+        gap: 16px;
     }
 
     .navbar-menu.open {
@@ -1711,81 +1963,368 @@ body {
     .navbar-brand {
         border-right: none;
         border-bottom: 1px solid var(--border-color);
-        padding-bottom: 16px;
+        padding-bottom: 12px;
         width: 100%;
     }
-    
-    .navbar-menu {
-        width: 100%;
-        justify-content: space-between;
-        padding: 16px 0;
+
+    .navbar-brand h2 {
+        font-size: 16px;
+        text-align: center;
     }
     
-    .form-row {
-        grid-template-columns: 1fr;
+    /* Botones más grandes para táctil (mínimo 44x44px) */
+    .btn, 
+    button {
+        padding: 16px 24px;
+        font-size: 15px;
+        min-height: 48px;
+        border-radius: var(--radius-lg);
+    }
+
+    .btn-sm {
+        padding: 14px 20px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+
+    /* Formularios más grandes para móvil */
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 16px 18px;
+        font-size: 16px; /* Previene zoom automático en iOS */
+        min-height: 48px;
+    }
+
+    .form-group label {
+        font-size: 14px;
+        margin-bottom: 8px;
     }
     
-    .stats-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .prestamos-grid {
-        grid-template-columns: 1fr;
-    }
-    
+    /* Grids a una columna */
+    .form-row,
+    .stats-grid,
+    .prestamos-grid,
     .cliente-summary {
         grid-template-columns: 1fr;
-    }
-    
-    .prestamo-value {
-        font-size: 32px;
+        gap: 16px;
     }
 
-    /* tablas se deslizan horizontalmente en móviles */
-    .table-responsive {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+    /* Stat cards con espaciado mejorado */
+    .stat-card {
+        padding: 20px;
+        min-height: 100px;
     }
 
-    /* imágenes y medios no exceden el contenedor */
-    img,
-    video,
-    iframe {
-        max-width: 100%;
-        height: auto;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-    }
-
-    /* botones y campos ocupan el 100% en pantallas pequeñas */
-    button,
-    .btn,
-    input,
-    select,
-    textarea {
-        width: 100%;
-        box-sizing: border-box;
-    }
-
-    /* asegurar las tablas de datos puedan desplazarse en móviles sin romper el layout */
-    .data-table,
-    .pagos-table {
-        display: block;
-        overflow-x: auto;
-        white-space: nowrap;
-    }
-    
-    .summary-value {
+    .stat-value {
         font-size: 28px;
     }
     
+    /* Tablas con scroll horizontal mejorado */
+    .table-responsive,
+    .table-container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        border-radius: var(--radius-lg);
+        box-shadow: inset 0 0 0 1px var(--border-color);
+    }
+
+    .data-table {
+        min-width: 600px; /* Ancho mínimo para evitar aplastamiento */
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 14px 12px;
+        font-size: 14px;
+    }
+
+    /* Espacio adicional en primera y última columna */
+    .data-table th:first-child,
+    .data-table td:first-child {
+        padding-left: 16px;
+    }
+
+    .data-table th:last-child,
+    .data-table td:last-child {
+        padding-right: 16px;
+    }
+
+    /* Cards con padding reducido */
+    .card-body {
+        padding: 20px 16px;
+    }
+
+    .card-header {
+        padding: 16px;
+    }
+
+    .card-header h2 {
+        font-size: 18px;
+    }
+
+    /* Títulos de página más pequeños */
     .page-header h1 {
         font-size: 24px;
+        line-height: 1.3;
+    }
+
+    .page-header {
+        margin-bottom: 20px;
+        gap: 12px;
+    }
+
+    /* Info grid responsive */
+    .info-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .info-grid > div {
+        padding: 12px;
+        border-left: 3px solid var(--border-dark);
+        background: var(--bg-secondary);
+        border-radius: var(--radius-md);
+    }
+
+    /* Cobros hoy con mejor espaciado */
+    .cobros-hoy-list {
+        gap: 12px;
+    }
+
+    .cobro-item {
+        padding: 16px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .cobro-info,
+    .cobro-monto,
+    .cobro-accion {
+        width: 100%;
+    }
+
+    .cobro-accion .btn {
+        width: 100%;
+    }
+
+    /* Action buttons a full width */
+    .action-buttons {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .action-buttons .btn {
+        width: 100%;
+    }
+
+    .form-actions {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .form-actions .btn {
+        width: 100%;
+    }
+
+    /* Ajuste de valores grandes */
+    .prestamo-value,
+    .summary-value {
+        font-size: 32px;
+    }
+
+    /* Badges y etiquetas más grandes */
+    .badge {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+
+    /* Progress bar más visible */
+    .progress-bar {
+        height: 32px;
+        font-size: 14px;
     }
 }
+
+/* MÓVIL PEQUEÑO (hasta 576px) */
+@media (max-width: 576px) {
+    /* Padding ultra reducido para pantallas pequeñas */
+    .dashboard-container {
+        padding: 16px 12px 24px;
+    }
+
+    /* Navbar más compacto */
+    .navbar {
+        padding: 10px 12px;
+    }
+
+    .navbar-brand h2 {
+        font-size: 14px;
+    }
+
+    .navbar-menu {
+        padding: 12px 0;
+        gap: 12px;
+    }
+
+    /* Botones con padding ajustado */
+    .btn {
+        padding: 14px 20px;
+        font-size: 14px;
+        min-height: 44px;
+    }
+
+    .btn-sm {
+        padding: 12px 16px;
+        font-size: 13px;
+        min-height: 40px;
+    }
+
+    /* Formularios compactos */
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        padding: 14px 16px;
+        font-size: 16px;
+    }
+
+    /* Cards muy compactos */
+    .card-body {
+        padding: 16px 12px;
+    }
+
+    .card-header {
+        padding: 14px 12px;
+    }
+
+    .card-header h2 {
+        font-size: 16px;
+    }
+
+    /* Títulos ajustados */
+    .page-header h1 {
+        font-size: 20px;
+    }
+
+    /* Valores más pequeños */
+    .stat-value {
+        font-size: 24px;
+    }
+
+    .prestamo-value,
+    .summary-value {
+        font-size: 28px;
+    }
+
+    /* Tablas ultra compactas */
+    .data-table th,
+    .data-table td {
+        padding: 12px 10px;
+        font-size: 13px;
+    }
+
+    /* Stat cards compactos */
+    .stat-card {
+        padding: 16px;
+    }
+
+    .stat-card h3 {
+        font-size: 11px;
+    }
+
+    /* Info grid más compacto */
+    .info-grid > div {
+        padding: 10px;
+        font-size: 13px;
+    }
+
+    /* Cobros hoy más compacto */
+    .cobro-item {
+        padding: 14px;
+    }
+
+    .cobro-item h4 {
+        font-size: 15px;
+    }
+
+    .cobro-monto .monto {
+        font-size: 20px;
+    }
+
+    /* Progress bar más pequeño */
+    .progress-bar {
+        height: 28px;
+        font-size: 12px;
+    }
+}
+
+/* MÓVIL MUY PEQUEÑO (hasta 380px) */
+@media (max-width: 380px) {
+    .dashboard-container {
+        padding: 12px 8px 20px;
+    }
+
+    .navbar {
+        padding: 8px 10px;
+    }
+
+    .navbar-brand h2 {
+        font-size: 13px;
+    }
+
+    .btn {
+        padding: 12px 16px;
+        font-size: 13px;
+    }
+
+    .card-body {
+        padding: 14px 10px;
+    }
+
+    .stat-value {
+        font-size: 22px;
+    }
+
+    .page-header h1 {
+        font-size: 18px;
+    }
+}
+
+/* MEJORAS TÁCTILES GENERALES */
+@media (hover: none) and (pointer: coarse) {
+    /* Dispositivos táctiles: aumentar áreas clickeables */
+    a, button, .btn, input[type="submit"], input[type="button"] {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Aumentar padding en elementos interactivos */
+    .data-table tbody tr {
+        cursor: pointer;
+    }
+
+    .data-table tbody tr:active {
+        background: var(--bg-highlight);
+        transform: scale(0.98);
+    }
+
+    /* Feedback visual inmediato en toques */
+    .btn:active {
+        transform: scale(0.95);
+        transition: transform 0.1s;
+    }
+
+    /* Desactivar hover effects en táctil */
+    .btn:hover::before {
+        display: none;
+    }
+}
+
 
 /* ============================================
    SCROLLBAR PERSONALIZADO

@@ -2,10 +2,13 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <!-- viewport fijo para evitar que el navegador haga zoom automático en móviles -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- viewport optimizado para móvil con zoom controlado -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=5.0">
     <title><?php echo isset($titulo) ? $titulo : 'Sistema de Cobranza'; ?></title>
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="<?php echo BASE_URL; ?>assets/css/style.css?v=2.7">
 </head>
 <body class="<?php echo $_SESSION['rol'] ?? 'default'; ?>-page">
     <nav class="navbar">
@@ -36,4 +39,5 @@
             </a>
         </div>
     </nav>
+    <div class="navbar-overlay"></div>
 

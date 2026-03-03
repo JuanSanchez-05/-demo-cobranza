@@ -102,7 +102,6 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             <th>Fecha</th>
                             <th>Pago Realizado</th>
                             <th>Saldo Pendiente</th>
-                            <th>Firma del Empleado</th>
                             <th>Acción</th>
                         </tr>
                     </thead>
@@ -125,24 +124,17 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             $fecha_pago = $pago_existente ? $pago_existente['fecha'] : 'Pendiente';
                             $monto_pago = $pago_existente ? $pago_existente['pago'] : 0;
                             $saldo = $pago_existente ? $pago_existente['saldo'] : ($total - ($i - 1) * $pago_unitario);
-                            $firmado = $pago_existente ? $pago_existente['firma'] : false;
+                            $pago_registrado = ($pago_existente && $monto_pago > 0);
                         ?>
-                        <tr class="<?php echo $monto_pago > 0 ? 'row-paid' : ''; ?>">
+                        <tr class="<?php echo $pago_registrado ? 'row-paid' : ''; ?>">
                             <td><?php echo $i; ?></td>
                             <td><?php echo htmlspecialchars($fecha_pago); ?></td>
-                            <td class="<?php echo $monto_pago > 0 ? 'text-success' : ''; ?>">
+                            <td class="<?php echo $pago_registrado ? 'text-success' : ''; ?>">
                                 $<?php echo number_format($monto_pago, 2); ?>
                             </td>
                             <td>$<?php echo number_format($saldo, 2); ?></td>
                             <td>
-                                <?php if ($firmado): ?>
-                                    <span class="badge badge-success">✓ Firmado</span>
-                                <?php else: ?>
-                                    <span class="badge badge-secondary">Pendiente</span>
-                                <?php endif; ?>
-                            </td>
-                            <td>
-                                <?php if (!$firmado): ?>
+                                <?php if (!$pago_registrado): ?>
                                     <form method="POST" style="display: inline;">
                                         <input type="hidden" name="dia" value="<?php echo $i; ?>">
                                         <button type="submit" name="registrar_pago" class="btn btn-sm btn-success">
@@ -150,7 +142,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                         </button>
                                     </form>
                                 <?php else: ?>
-                                    <span class="text-muted">Ya registrado</span>
+                                    <span class="text-muted">✓ Pagado</span>
                                 <?php endif; ?>
                             </td>
                         </tr>

@@ -22,7 +22,7 @@ switch ($action) {
         
         // Verificar que el préstamo pertenece al cliente
         if (!$cartera || !isset($cartera['telefono']) || $cartera['telefono'] !== $telefono_cliente) {
-            header('Location: ' . BASE_URL . 'controllers/ClienteController.php?action=prestamos&error=acceso_denegado');
+            header('Location: ' . BASE_URL . 'index.php');
             exit;
         }
         

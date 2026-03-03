@@ -2,7 +2,10 @@
 $titulo = 'Mi Cartera - Trabajador';
 include __DIR__ . '/../layouts/header.php';
 
-$filtro = $_GET['filtro'] ?? 'todas';
+// La variable $filtro viene del controlador, pero nos aseguramos de tener un valor por defecto
+if (!isset($filtro)) {
+    $filtro = $_GET['filtro'] ?? 'todas';
+}
 
 // Calcular estadísticas de la cartera
 $total_cartera = 0;
@@ -182,6 +185,59 @@ $porcentaje_cartera = $total_cartera > 0 ? ($cobrado_cartera / $total_cartera) *
                 <?php endif; ?>
             </tbody>
         </table>
+    </div>
+
+    <!-- Tarjetas Completadas -->
+    <div class="section">
+        <h2>Tarjetas Completadas</h2>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tipo</th>
+                        <th>Cliente</th>
+                        <th>Teléfono</th>
+                        <th>Total Préstamo</th>
+                        <th>Fecha Completada</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php if (isset($completadas) && count($completadas) > 0): ?>
+                        <?php foreach ($completadas as $tarjeta): 
+                            $total = $tarjeta['total_prestamo'] ?? ($tarjeta['valor'] ?? 0);
+                        ?>
+                        <tr class="row-completed">
+                            <td><?php echo $tarjeta['id']; ?></td>
+                            <td>
+                                <span class="badge badge-<?php 
+                                    echo $tarjeta['tipo'] === 'antigua_semanal' ? 'info' : 
+                                        ($tarjeta['tipo'] === 'antigua_diaria' ? 'warning' : 'success'); 
+                                ?>">
+                                    <?php 
+                                    echo $tarjeta['tipo'] === 'antigua_semanal' ? 'Semanal' : 
+                                        ($tarjeta['tipo'] === 'antigua_diaria' ? 'Diaria' : 'Nueva'); 
+                                    ?>
+                                </span>
+                            </td>
+                            <td><?php echo htmlspecialchars($tarjeta['nombre'] ?? 'N/A'); ?></td>
+                            <td><?php echo htmlspecialchars($tarjeta['telefono'] ?? 'N/A'); ?></td>
+                            <td>$<?php echo number_format($total, 2); ?></td>
+                            <td><strong><?php echo htmlspecialchars($tarjeta['fecha_completada'] ?? 'N/A'); ?></strong></td>
+                            <td>
+                                <span class="badge badge-success">✓ Completada</span>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td colspan="7" class="text-center">No hay tarjetas completadas</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 

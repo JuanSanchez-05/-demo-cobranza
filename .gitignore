@@ -1,0 +1,85 @@
+# Sistema de Cobranza - Configuración de Gitignore
+
+# Archivos de configuración local
+/config/database.php
+/config/local_config.php
+*.local.php
+
+# Archivos de entorno
+.env
+.env.local
+.env.*.local
+
+# Archivos de desarrollo y debug
+debug_*.php
+test_*.php
+verificar_*.php
+demo_*.php
+probar_*.php
+
+# Logs
+*.log
+logs/
+/tmp/*.log
+
+# Cache
+cache/
+*.cache
+
+# Archivos temporales
+*.tmp
+*.temp
+/tmp/*
+!/tmp/.gitkeep
+
+# Backups de base de datos
+*.sql.backup
+*.sql.bak
+backups/
+
+# Archivos del sistema operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# IDEs y editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Composer (si se usa)
+/vendor/
+composer.phar
+composer.lock
+
+# Node modules (si se usa)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Archivos de configuración de XAMPP/WAMP local
+php_error.log
+error_log
+
+# Uploads y archivos subidos por usuarios
+/uploads/*
+!/uploads/.gitkeep
+
+# Archivos de sesión
+/sessions/*
+!/sessions/.gitkeep
+
+# No ignorar archivos necesarios
+!.htaccess
+!index.php

@@ -265,13 +265,29 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // ============================================
-    // Toggle del menú en móviles
+    // Toggle del menú en móviles (con overlay y animación)
     // ============================================
     const navbarToggle = document.querySelector('.navbar-toggle');
     const navbarMenu = document.querySelector('.navbar-menu');
+    const navbarOverlay = document.querySelector('.navbar-overlay');
     if (navbarToggle && navbarMenu) {
         navbarToggle.addEventListener('click', () => {
             navbarMenu.classList.toggle('open');
+            if (navbarOverlay) navbarOverlay.classList.toggle('show');
+            // cambiar icono hamburguesa/cerrar
+            if (navbarToggle.classList.toggle('active')) {
+                navbarToggle.innerHTML = '&times;';
+            } else {
+                navbarToggle.innerHTML = '&#9776;';
+            }
+        });
+    }
+    if (navbarOverlay && navbarMenu && navbarToggle) {
+        navbarOverlay.addEventListener('click', () => {
+            navbarMenu.classList.remove('open');
+            navbarOverlay.classList.remove('show');
+            navbarToggle.classList.remove('active');
+            navbarToggle.innerHTML = '&#9776;';
         });
     }
     

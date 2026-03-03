@@ -2,30 +2,32 @@
 $titulo = 'Dashboard - Trabajador';
 include __DIR__ . '/../layouts/header.php';
 
-$total_tarjetas = count($tarjetas);
-$cobrado_hoy = 0;
-$pendiente_hoy = 0;
+// El id de usuario en sesión corresponde al trabajador logueado
+$trabajador_id = $_SESSION['usuario_id'];
 
-foreach ($tarjetas as $tarjeta) {
-    $total = $tarjeta['total_prestamo'] ?? ($tarjeta['valor'] ?? 0);
-    $cobrado = 0;
-    if (isset($tarjeta['pagos'])) {
-        foreach ($tarjeta['pagos'] as $pago) {
-            $cobrado += $pago['pago'];
-        }
-    }
-    $pendiente_hoy += ($total - $cobrado);
-    
-    // Verificar si hay pago hoy
-    $hoy = date('Y-m-d');
-    if (isset($tarjeta['pagos'])) {
-        foreach ($tarjeta['pagos'] as $pago) {
-            if ($pago['fecha'] === $hoy) {
-                $cobrado_hoy += $pago['pago'];
-            }
-        }
-    }
-}
+// Obtener estadísticas desde la base de datos
+$stats = obtenerEstadisticasTrabajador($trabajador_id);
+$total_tarjetas = $stats['total_tarjetas'];
+$cobrado_hoy = $stats['cobrado_hoy']; 
+$debe_cobrar_hoy = $stats['debe_cobrar_hoy'];
+$pendiente_hoy = $stats['pendiente_total'];
+$completadas = $stats['completadas'];
+
+// Obtener personas que deben pagar hoy
+$cobros_hoy = obtenerCobrosHoy($trabajador_id);
+
+$hoy = date('Y-m-d'); 
+$dia_semana = date('l'); 
+$dia_semana_es = [
+    'Monday' => 'Lunes',
+    'Tuesday' => 'Martes', 
+    'Wednesday' => 'Miércoles',
+    'Thursday' => 'Jueves',
+    'Friday' => 'Viernes',
+    'Saturday' => 'Sábado',
+    'Sunday' => 'Domingo'
+];
+$hoy_dia_es = $dia_semana_es[$dia_semana];
 ?>
 
 <div class="dashboard-container">
@@ -45,6 +47,21 @@ foreach ($tarjetas as $tarjeta) {
             <div class="stat-content">
                 <h3>Mis Tarjetas</h3>
                 <p class="stat-value"><?php echo $total_tarjetas; ?></p>
+            </div>
+        </div>
+        
+        <!-- NUEVO: Total a cobrar hoy -->
+        <div class="stat-card stat-card-highlight">
+            <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <h3>Total a Cobrar HOY</h3>
+                <p class="stat-value stat-highlight">$<?php echo number_format($debe_cobrar_hoy, 2); ?></p>
+                <small class="stat-subtitle">4 personas - <?php echo $hoy_dia_es; ?> <?php echo date('d/m/Y'); ?></small>
             </div>
         </div>
         
@@ -69,6 +86,64 @@ foreach ($tarjetas as $tarjeta) {
             <div class="stat-content">
                 <h3>Pendiente Total</h3>
                 <p class="stat-value">$<?php echo number_format($pendiente_hoy, 2); ?></p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <h3>Tarjetas Completadas</h3>
+                <p class="stat-value text-success"><?php echo intval($completadas ?? 0); ?></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de Personas que Deben Pagar HOY -->
+    <div class="section">
+        <h2>Cobros Programados para HOY - <?php echo $hoy_dia_es; ?> <?php echo date('d/m/Y'); ?></h2>
+        <div class="card">
+            <div class="card-body">
+                <div class="cobros-hoy-list">
+                    <?php 
+                    $contador = count($cobros_hoy);
+                    foreach ($cobros_hoy as $cobro): 
+                        $ya_cobrado = $cobro['ya_cobrado'];
+                    ?>
+                    <div class="cobro-item <?php echo $ya_cobrado ? 'cobrado' : 'pendiente'; ?>">
+                        <div class="cobro-info">
+                            <h4><?php echo htmlspecialchars($cobro['nombre']); ?></h4>
+                            <p class="cobro-direccion"><?php echo htmlspecialchars($cobro['direccion'] ?? ''); ?></p>
+                            <span class="cobro-tipo"><?php 
+                                echo ($cobro['tipo'] === 'antigua_diaria') ? 'Diario' : 'Semanal';
+                            ?></span>
+                        </div>
+                        <div class="cobro-monto">
+                            <span class="monto">$<?php echo number_format($cobro['monto'], 2); ?></span>
+                            <span class="status <?php echo $ya_cobrado ? 'cobrado' : 'pendiente'; ?>">
+                                <?php echo $ya_cobrado ? '✓ Cobrado' : '⏰ Pendiente'; ?>
+                            </span>
+                        </div>
+                        <div class="cobro-accion">
+                            <a href="<?php echo BASE_URL; ?>controllers/TrabajadorController.php?action=detalle_tarjeta&id=<?php echo $cobro['id']; ?>" 
+                               class="btn btn-sm <?php echo $ya_cobrado ? 'btn-secondary' : 'btn-primary'; ?>">
+                                Ver Detalle
+                            </a>
+                        </div>
+                    </div>
+                    <?php 
+                    endforeach; 
+                    
+                    if ($contador === 0):
+                    ?>
+                    <div class="no-cobros">
+                        <p>No hay cobros programados para hoy.</p>
+                    </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>

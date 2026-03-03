@@ -39,12 +39,7 @@ include __DIR__ . '/../layouts/header.php';
                     $pendiente = $total - $cobrado;
                     $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                     
-                    global $usuarios_simulados;
-                    $trabajador = array_filter($usuarios_simulados, function($u) use ($tarjeta) {
-                        return $u['id'] == $tarjeta['trabajador_id'];
-                    });
-                    $trabajador = reset($trabajador);
-                    $nombre_trab = $trabajador ? $trabajador['nombre'] : "ID " . $tarjeta['trabajador_id'];
+                    $nombre_trab = $tarjeta['trabajador_nombre'] ?? 'N/A';
                 ?>
                 <tr>
                     <td><?php echo $tarjeta['id']; ?></td>
