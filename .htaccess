@@ -1,0 +1,21 @@
+# Configuración para Sistema de Cobranza
+RewriteEngine On
+
+# Redirigir a index.php si el archivo no existe
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+
+# Permitir acceso a archivos estáticos
+RewriteCond %{REQUEST_URI} !^/demo-cobranza/assets/
+RewriteCond %{REQUEST_URI} !^/demo-cobranza/index.php
+
+# Configuración de PHP
+php_flag display_errors On
+php_value error_reporting E_ALL
+
+# Configuración de seguridad básica
+<FilesMatch "\.(htaccess|htpasswd|ini|log|sh)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
