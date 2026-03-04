@@ -52,16 +52,29 @@ TIMEZONE = America/Mexico_City
 
 **⚠️ IMPORTANTE**: El Shell NO está disponible en el plan gratuito de Render.
 
-**Usa el Setup Web** (más fácil):
-1. Abre en tu navegador: `https://tu-app.onrender.com/setup_web.php?key=demo2026`
-2. Click en **"Ejecutar Setup Ahora"**
-3. Espera a que termine (verás un mensaje de éxito)
-4. ¡Listo! Ya puedes hacer login
+**Prueba estas URLs en orden** (después de que el deploy esté "Live"):
 
-**Alternativa** (desde tu computadora):
-1. Instala un cliente PostgreSQL (pgAdmin o DBeaver)
-2. Conéctate con las credenciales **External** del paso 2
-3. Ejecuta manualmente el contenido de `database/schema.sql`
+**Opción 1: init.php** (más simple):
+```
+https://tu-app.onrender.com/init.php?setup=yes
+```
+
+**Opción 2: setup_web.php** (más detallado):
+```
+https://tu-app.onrender.com/setup_web.php?key=demo2026
+```
+
+**Opción 3: test.php** (verificar que PHP funciona):
+```
+https://tu-app.onrender.com/test.php
+```
+Si test.php no funciona, hay un problema con PHP en Render.
+
+**Si ninguna funciona:**
+1. Revisa los logs en Render (Dashboard → tu servicio → Logs)
+2. Verifica que el deploy terminó exitosamente (estado "Live")
+3. Espera 1-2 minutos después del deploy
+4. Intenta conectarte desde tu PC con pgAdmin (ver SHELL_ALTERNATIVAS.md)
 
 ### 7️⃣ ¡Listo!
 Tu app estará en: `https://demo-cobranza.onrender.com`

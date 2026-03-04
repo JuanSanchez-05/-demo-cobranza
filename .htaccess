@@ -2,6 +2,10 @@
 RewriteEngine On
 RewriteBase /
 
+# Permitir acceso directo a archivos de setup
+RewriteCond %{REQUEST_URI} ^/(setup_web|init)\.php$ [NC]
+RewriteRule ^ - [L]
+
 # Redirigir a index.php si el archivo no existe
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
@@ -9,9 +13,9 @@ RewriteCond %{REQUEST_FILENAME} !-d
 # Permitir acceso a archivos estáticos (assets, css, js, imágenes)
 RewriteCond %{REQUEST_URI} !^/assets/
 RewriteCond %{REQUEST_URI} !^/index.php
-RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$
+RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|php)$
 
-# Redirigir todo a index.php
+# Redirigir todo a index.php (COMENTADO para Render)
 # RewriteRule ^(.*)$ index.php [L,QSA]
 
 # Configuración de PHP
