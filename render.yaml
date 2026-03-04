@@ -1,0 +1,34 @@
+services:
+  # Servicio Web PHP
+  - type: web
+    name: demo-cobranza
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: DB_HOST
+        fromDatabase:
+          name: cobranza-db
+          property: host
+      - key: DB_NAME
+        fromDatabase:
+          name: cobranza-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: cobranza-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: cobranza-db
+          property: password
+      - key: DB_PORT
+        value: 5432
+      - key: TIMEZONE
+        value: America/Mexico_City
+
+  # Base de Datos PostgreSQL
+databases:
+  - name: cobranza-db
+    databaseName: cobranza_db
+    plan: free

@@ -13,7 +13,9 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-define('BASE_URL', '/demo-cobranza/');
+// Detectar si estamos en producción (Render) o en desarrollo local (XAMPP)
+$isProduction = getenv('RENDER') !== false || getenv('RAILWAY_ENVIRONMENT') !== false;
+define('BASE_URL', $isProduction ? '/' : '/demo-cobranza/');
 define('ROOT_PATH', __DIR__ . '/../');
 
 // ============================================
@@ -23,13 +25,22 @@ define('ROOT_PATH', __DIR__ . '/../');
 /**
  * Configuración de Base de Datos
  * Sistema de Cobranza
+ * Soporta variables de entorno (Render, Railway, etc.) y XAMPP local
  */
 class Database {
-    private $host = 'localhost:3307';
-    private $db_name = 'cobranza_db';
-    private $username = 'root';
-    private $password = ''; // XAMPP por defecto no tiene contraseña
+    private $host;
+    private $db_name;
+    private $username;
+    private $password;
     private $conn;
+    
+    public function __construct() {
+        // Soporte para variables de entorno (producción) o valores por defecto (XAMPP local)
+        $this->host = getenv('DB_HOST') ?: 'localhost:3307';
+        $this->db_name = getenv('DB_NAME') ?: 'cobranza_db';
+        $this->username = getenv('DB_USER') ?: 'root';
+        $this->password = getenv('DB_PASSWORD') ?: '';
+    }
     
     public function getConnection() {
         // Si ya tenemos una conexión, verificar si sigue activa
