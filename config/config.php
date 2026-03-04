@@ -194,7 +194,7 @@ function getDB() {
 
 function obtenerUsuarioPorTelefono($telefono) {
     $db = getDB();
-    $stmt = $db->prepare("SELECT * FROM usuarios WHERE telefono = ? AND activo = 1");
+    $stmt = $db->prepare("SELECT * FROM usuarios WHERE telefono = ? AND activo = TRUE");
     $stmt->execute([$telefono]);
     return $stmt->fetch();
 }
@@ -281,7 +281,7 @@ function obtenerTodasLasCarteras() {
         SELECT c.*, u.nombre AS trabajador_nombre
         FROM carteras c
         JOIN usuarios u ON c.trabajador_id = u.id
-        WHERE c.activo = 1
+        WHERE c.activo = TRUE
         ORDER BY c.nombre
     ");
     $carteras = $stmt->fetchAll();
@@ -311,7 +311,7 @@ function obtenerCarteraPorId($cartera_id) {
 
 function obtenerCarteraPorTrabajador($trabajador_id) {
     $db = getDB();
-    $stmt = $db->prepare("SELECT * FROM carteras WHERE trabajador_id = ? AND activo = 1 LIMIT 1");
+    $stmt = $db->prepare("SELECT * FROM carteras WHERE trabajador_id = ? AND activo = TRUE LIMIT 1");
     $stmt->execute([$trabajador_id]);
     $cartera = $stmt->fetch();
     if ($cartera) {
@@ -336,7 +336,7 @@ function actualizarCarteraSimulada($id, $data) {
 
 function eliminarCarteraSimulada($id) {
     $db = getDB();
-    $stmt = $db->prepare("UPDATE carteras SET activo = 0 WHERE id = ?");
+    $stmt = $db->prepare("UPDATE carteras SET activo = FALSE WHERE id = ?");
     $stmt->execute([$id]);
 }
 
@@ -372,7 +372,7 @@ function obtenerTarjetasPorTrabajador($trabajador_id) {
         SELECT t.*
         FROM tarjetas t
         JOIN carteras c ON t.cartera_id = c.id
-        WHERE c.trabajador_id = ? AND t.estado = 'activo' AND c.activo = 1
+        WHERE c.trabajador_id = ? AND t.estado = 'activo' AND c.activo = TRUE
         ORDER BY t.nombre
     ");
     $stmt->execute([$trabajador_id]);
@@ -671,7 +671,7 @@ function calcularEstadisticas() {
     $total_tarjetas = $db->query("SELECT COUNT(*) FROM tarjetas WHERE estado = 'activo'")->fetchColumn();
     
     // Total trabajadores activos
-    $total_trabajadores = $db->query("SELECT COUNT(*) FROM usuarios WHERE rol = 'trabajador' AND activo = 1")->fetchColumn();
+    $total_trabajadores = $db->query("SELECT COUNT(*) FROM usuarios WHERE rol = 'trabajador' AND activo = TRUE")->fetchColumn();
 
     // Cobrado hoy (suma de todos los pagos registrados hoy)
     $stmt = $db->prepare("SELECT COALESCE(SUM(pago), 0) FROM pagos WHERE fecha = ? AND pago > 0");
@@ -788,7 +788,7 @@ function actualizarCartera($id, $data) {
 
 function eliminarCartera($id) {
     $db = getDB();
-    $stmt = $db->prepare("UPDATE carteras SET activo = 0 WHERE id = ?");
+    $stmt = $db->prepare("UPDATE carteras SET activo = FALSE WHERE id = ?");
     return $stmt->execute([$id]);
 }
 
