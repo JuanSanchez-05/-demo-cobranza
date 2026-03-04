@@ -18,8 +18,8 @@ $nombre_trab = $tarjeta['trabajador_nombre'] ?? obtenerNombreUsuarioPorId($tarje
 <div class="dashboard-container">
     <div class="page-header">
         <h1>Detalle de Tarjeta #<?php echo $tarjeta['id']; ?></h1>
-        <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=tarjetas" class="btn btn-secondary">
-            ← Volver a Tarjetas
+        <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=dashboard" class="btn btn-secondary">
+            ← Volver al Dashboard
         </a>
     </div>
 
