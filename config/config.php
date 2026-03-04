@@ -482,7 +482,7 @@ function marcarTarjetaCompletada($tarjeta_id) {
     $tarjeta = obtenerTarjetaPorId($tarjeta_id);
     if (!$tarjeta) return false;
     
-    $stmt = $db->prepare("UPDATE tarjetas SET estado = 'completado', fecha_completada = CURDATE() WHERE id = ?");
+    $stmt = $db->prepare("UPDATE tarjetas SET estado = 'completado', fecha_completada = CURRENT_DATE WHERE id = ?");
     $result = $stmt->execute([$tarjeta_id]);
     
     return $result;
@@ -538,14 +538,14 @@ function registrarPagoTarjeta($tarjeta_id, $numero_dia) {
 
             $stmt = $db->prepare("
                 INSERT INTO pagos (tarjeta_id, dia, fecha, pago, saldo, cobrador_id, fecha_registro)
-                VALUES (?, ?, CURDATE(), ?, ?, ?, NOW())
+                VALUES (?, ?, CURRENT_DATE, ?, ?, ?, NOW())
             ");
             $stmt->execute([$tarjeta_id, $numero_dia, $monto, $nuevo_saldo, $_SESSION['usuario_id']]);
         }
 
         // Si saldo llega a 0, marcar como completada
         if ($nuevo_saldo <= 0) {
-            $db->prepare("UPDATE tarjetas SET estado = 'completado', fecha_completada = CURDATE() WHERE id = ?")
+            $db->prepare("UPDATE tarjetas SET estado = 'completado', fecha_completada = CURRENT_DATE WHERE id = ?")
                ->execute([$tarjeta_id]);
         }
 
@@ -1103,7 +1103,7 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     // Solo actualizamos el campo 'pago' para indicar que se realizó
     $stmt = $db->prepare("
         UPDATE pagos 
-        SET pago = ?, cobrador_id = ?, fecha = CURDATE(), fecha_registro = NOW()
+        SET pago = ?, cobrador_id = ?, fecha = CURRENT_DATE, fecha_registro = NOW()
         WHERE tarjeta_id = ? AND dia = ?
     ");
     $result = $stmt->execute([$monto, $cobrador_id, $tarjeta_id, $dia]);
@@ -1139,7 +1139,7 @@ function verificarTarjetaCompletada($tarjeta_id) {
     if ($pendientes == 0) {
         $stmt = $db->prepare("
             UPDATE tarjetas 
-            SET estado = 'completado', fecha_completada = CURDATE()
+            SET estado = 'completado', fecha_completada = CURRENT_DATE
             WHERE id = ?
         ");
         return $stmt->execute([$tarjeta_id]);
