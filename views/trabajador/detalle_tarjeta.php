@@ -25,6 +25,8 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
     <?php if (isset($_GET['mensaje'])): ?>
         <?php if ($_GET['mensaje'] === 'pago_registrado'): ?>
             <div class="alert alert-success">✓ Pago registrado exitosamente</div>
+        <?php elseif ($_GET['mensaje'] === 'pendiente_marcado'): ?>
+            <div class="alert alert-info">⭕ Visita registrada como pendiente. Se completará cuando se realice el pago.</div>
         <?php elseif ($_GET['mensaje'] === 'error_pago'): ?>
             <div class="alert alert-warning">⚠ Este pago ya fue registrado anteriormente</div>
         <?php elseif ($_GET['mensaje'] === 'error_dia'): ?>
@@ -37,6 +39,8 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
             <div class="alert alert-danger">✗ Datos inválidos. Verifica el día y el monto del pago.</div>
         <?php elseif ($_GET['error'] === 'error_pago'): ?>
             <div class="alert alert-danger">✗ Error al registrar el pago. Intenta nuevamente.</div>
+        <?php elseif ($_GET['error'] === 'error_pendiente'): ?>
+            <div class="alert alert-danger">✗ Error al marcar como pendiente. Intenta nuevamente.</div>
         <?php elseif ($_GET['error'] === 'orden_pago_invalido'): ?>
             <div class="alert alert-warning">⚠ Debes registrar los pagos en orden. Primero completa el siguiente período pendiente.</div>
         <?php endif; ?>
@@ -214,7 +218,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                 <?php endif; ?>
                             </td>
                             <!-- Columna 6: Acción -->
-                            <td>
+                            <td style="white-space: nowrap;">
                                 <?php if (!$pago_registrado): ?>
                                     <?php if ($puede_registrar): ?>
                                         <form method="POST" style="display: inline;">
@@ -222,6 +226,12 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                             <input type="hidden" name="monto" value="<?php echo $pago_unitario; ?>">
                                             <button type="submit" name="registrar_pago" class="btn btn-sm btn-success">
                                                 Registrar Pago
+                                            </button>
+                                        </form>
+                                        <form method="POST" style="display: inline; margin-left: 5px;">
+                                            <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
+                                            <button type="submit" name="marcar_pendiente" class="btn btn-sm btn-warning">
+                                                ⭕ Marcar Pendiente
                                             </button>
                                         </form>
                                     <?php else: ?>

@@ -102,6 +102,48 @@ switch ($action) {
             }
             exit;
         }
+
+        // Procesar marcar como pendiente
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['marcar_pendiente'])) {
+            $dia = intval($_POST['dia'] ?? 0);
+
+            if ($dia > 0) {
+                $is_semanal = ($tarjeta['tipo'] === 'antigua_semanal');
+                $total_periodos = $tarjeta['semanas_pagar'] ?: ($tarjeta['dias_pagar'] ?: 12);
+                $pagos_por_dia = [];
+
+                if (isset($tarjeta['pagos'])) {
+                    foreach ($tarjeta['pagos'] as $p) {
+                        $pagos_por_dia[intval($p['dia'])] = floatval($p['pago'] ?? 0);
+                    }
+                }
+
+                $primer_dia_pendiente = null;
+                for ($periodo = 1; $periodo <= $total_periodos; $periodo++) {
+                    $dia_esperado = $is_semanal ? ($periodo * 7) : $periodo;
+                    $monto_registrado = floatval($pagos_por_dia[$dia_esperado] ?? 0);
+                    if ($monto_registrado <= 0) {
+                        $primer_dia_pendiente = $dia_esperado;
+                        break;
+                    }
+                }
+
+                if ($primer_dia_pendiente === null || $dia !== $primer_dia_pendiente) {
+                    header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=orden_pago_invalido');
+                    exit;
+                }
+
+                $resultado = registrarPagoPendiente($id, $dia, $trabajador_id);
+                if ($resultado) {
+                    header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&mensaje=pendiente_marcado');
+                } else {
+                    header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=error_pendiente');
+                }
+            } else {
+                header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=datos_invalidos');
+            }
+            exit;
+        }
         
         // Recargar tarjeta después de cambios
         $tarjeta = obtenerTarjetaPorId($id);
