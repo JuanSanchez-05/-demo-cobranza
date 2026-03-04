@@ -175,11 +175,15 @@ switch ($action) {
         }
 
         $hoy = date('Y-m-d');
+        $fecha_consulta = $_GET['fecha'] ?? $hoy;
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha_consulta)) {
+            $fecha_consulta = $hoy;
+        }
+
         $stats_cobrador = obtenerEstadisticasTrabajador($id);
-        $cobros_hoy = obtenerCobrosHoy($id);
-        $cobros_registrados_hoy = array_values(array_filter($cobros_hoy, function($item) use ($hoy) {
-            return floatval($item['ya_cobrado_monto'] ?? 0) > 0 && ($item['fecha'] ?? '') === $hoy;
-        }));
+        $cobrado_fecha = obtenerCobradoTrabajadorPorFecha($id, $fecha_consulta);
+        $pendiente_fecha = obtenerPendienteTrabajadorPorFecha($id, $fecha_consulta);
+        $cobros_registrados_hoy = obtenerCobrosRegistradosTrabajadorPorFecha($id, $fecha_consulta);
 
         include __DIR__ . '/../views/admin/detalle_cobrador.php';
         break;

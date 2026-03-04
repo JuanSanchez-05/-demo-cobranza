@@ -11,17 +11,33 @@ include __DIR__ . '/../layouts/header.php';
         </a>
     </div>
 
+    <div class="card">
+        <div class="card-body">
+            <form method="GET" action="<?php echo BASE_URL; ?>controllers/AdminController.php" class="form-row" style="align-items: end;">
+                <input type="hidden" name="action" value="detalle_cobrador">
+                <input type="hidden" name="id" value="<?php echo intval($trabajador['id'] ?? 0); ?>">
+                <div class="form-group" style="max-width: 240px;">
+                    <label>Fecha a consultar</label>
+                    <input type="date" name="fecha" value="<?php echo htmlspecialchars($fecha_consulta); ?>" class="form-control">
+                </div>
+                <div class="form-group" style="margin-left: 10px;">
+                    <button type="submit" class="btn btn-primary">Consultar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-content">
-                <h3>Cobrado Hoy</h3>
-                <p class="stat-value">$<?php echo number_format($stats_cobrador['cobrado_hoy'] ?? 0, 2); ?></p>
+                <h3>Cobrado en Fecha</h3>
+                <p class="stat-value">$<?php echo number_format($cobrado_fecha ?? 0, 2); ?></p>
             </div>
         </div>
         <div class="stat-card">
             <div class="stat-content">
-                <h3>Pendiente Hoy</h3>
-                <p class="stat-value">$<?php echo number_format($stats_cobrador['pendiente_hoy'] ?? 0, 2); ?></p>
+                <h3>Pendiente en Fecha</h3>
+                <p class="stat-value">$<?php echo number_format($pendiente_fecha ?? 0, 2); ?></p>
             </div>
         </div>
         <div class="stat-card">
@@ -39,7 +55,7 @@ include __DIR__ . '/../layouts/header.php';
     </div>
 
     <div class="section">
-        <h2>Cobros registrados hoy</h2>
+        <h2>Cobros registrados en <?php echo htmlspecialchars($fecha_consulta); ?></h2>
         <div class="table-container">
             <table class="data-table">
                 <thead>
@@ -65,7 +81,7 @@ include __DIR__ . '/../layouts/header.php';
                     <?php endforeach; ?>
                     <?php if (empty($cobros_registrados_hoy)): ?>
                         <tr>
-                            <td colspan="5" style="text-align:center;color:#888;">No hay cobros registrados hoy para este cobrador.</td>
+                            <td colspan="5" style="text-align:center;color:#888;">No hay cobros registrados para esta fecha.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>

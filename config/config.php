@@ -719,6 +719,59 @@ function obtenerCobrosHoy($trabajador_id) {
     return $cobros;
 }
 
+function obtenerCobradoTrabajadorPorFecha($trabajador_id, $fecha) {
+    $db = getDB();
+    $stmt = $db->prepare(" 
+        SELECT COALESCE(SUM(p.pago), 0)
+        FROM pagos p
+        JOIN tarjetas t ON p.tarjeta_id = t.id
+        JOIN carteras c ON t.cartera_id = c.id
+        WHERE c.trabajador_id = ? AND p.fecha = ? AND p.pago > 0
+          AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
+    ");
+    $stmt->execute([$trabajador_id, $fecha]);
+    return floatval($stmt->fetchColumn());
+}
+
+function obtenerPendienteTrabajadorPorFecha($trabajador_id, $fecha) {
+    $db = getDB();
+    $stmt = $db->prepare("
+        SELECT COALESCE(SUM(
+            CASE t.tipo
+                WHEN 'antigua_semanal' THEN t.pago_semanal
+                WHEN 'antigua_diaria'  THEN t.cuota_diaria
+                WHEN 'nueva'           THEN t.pago
+                ELSE 0
+            END
+        ), 0)
+        FROM pagos p
+        JOIN tarjetas t ON p.tarjeta_id = t.id
+        JOIN carteras c ON t.cartera_id = c.id
+        WHERE c.trabajador_id = ? AND p.fecha = ? AND p.pago = 0
+          AND p.fecha_registro IS NULL
+          AND t.estado = 'activo'
+          AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
+    ");
+    $stmt->execute([$trabajador_id, $fecha]);
+    return floatval($stmt->fetchColumn());
+}
+
+function obtenerCobrosRegistradosTrabajadorPorFecha($trabajador_id, $fecha) {
+    $db = getDB();
+    $stmt = $db->prepare("
+        SELECT t.id, t.nombre, t.direccion, p.dia, p.pago AS ya_cobrado_monto, p.fecha
+        FROM pagos p
+        JOIN tarjetas t ON p.tarjeta_id = t.id
+        JOIN carteras c ON t.cartera_id = c.id
+        WHERE c.trabajador_id = ? AND p.fecha = ? AND p.pago > 0
+          AND t.estado = 'activo'
+          AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
+        ORDER BY t.nombre
+    ");
+    $stmt->execute([$trabajador_id, $fecha]);
+    return $stmt->fetchAll();
+}
+
 // ============================================
 // DASHBOARD ADMIN
 // ============================================
@@ -783,38 +836,24 @@ function calcularEstadisticas() {
 
 function aplicarFiltroTarjetas($tarjetas, $filtro) {
     $hoy = date('Y-m-d');
-    
     switch ($filtro) {
         case 'cobradas_hoy':
-            // Tarjetas donde se registró UN pago hoy (pago > 0 y fecha = hoy)
             return array_filter($tarjetas, function($t) use ($hoy) {
-                if (!isset($t['pagos']) || empty($t['pagos'])) return false;
-                
                 foreach ($t['pagos'] as $p) {
-                    // Si hay un pago registrado hoy con monto > 0
-                    if (!empty($p['fecha']) && $p['fecha'] === $hoy && floatval($p['pago'] ?? 0) > 0) {
-                        return true;
-                    }
+                    $es_dia_valido = ($t['tipo'] !== 'antigua_semanal') || ((intval($p['dia']) % 7) === 0);
+                    if ($p['fecha'] === $hoy && $p['pago'] > 0 && $es_dia_valido) return true;
                 }
                 return false;
             });
-            
         case 'no_cobradas_hoy':
-            // Tarjetas con cuota para hoy pero no pagadas (fecha=hoy y pago=0)
             return array_filter($tarjetas, function($t) use ($hoy) {
-                if (!isset($t['pagos']) || empty($t['pagos'])) return false;
-                
                 foreach ($t['pagos'] as $p) {
-                    // Si la cuota es para hoy pero aún no se cobró (pago=0)
-                    if (!empty($p['fecha']) && $p['fecha'] === $hoy && floatval($p['pago'] ?? 0) == 0) {
-                        return true;
-                    }
+                    $es_dia_valido = ($t['tipo'] !== 'antigua_semanal') || ((intval($p['dia']) % 7) === 0);
+                    if ($p['fecha'] === $hoy && $p['pago'] == 0 && $es_dia_valido) return true;
                 }
                 return false;
             });
-            
         default:
-            // 'todas' - retorna todas las tarjetas
             return $tarjetas;
     }
 }
