@@ -165,6 +165,24 @@ switch ($action) {
         }
         include __DIR__ . '/../views/admin/detalle_tarjeta.php';
         break;
+
+    case 'detalle_cobrador':
+        $id = $_GET['id'] ?? 0;
+        $trabajador = obtenerTrabajadorPorId($id);
+        if (!$trabajador) {
+            header('Location: ' . BASE_URL . 'controllers/AdminController.php?action=dashboard&error=trabajador_no_encontrado');
+            exit;
+        }
+
+        $hoy = date('Y-m-d');
+        $stats_cobrador = obtenerEstadisticasTrabajador($id);
+        $cobros_hoy = obtenerCobrosHoy($id);
+        $cobros_registrados_hoy = array_values(array_filter($cobros_hoy, function($item) use ($hoy) {
+            return floatval($item['ya_cobrado_monto'] ?? 0) > 0 && ($item['fecha'] ?? '') === $hoy;
+        }));
+
+        include __DIR__ . '/../views/admin/detalle_cobrador.php';
+        break;
         
     case 'trabajadores':
         $trabajadores = obtenerTodosTrabajadores();

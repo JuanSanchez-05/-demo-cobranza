@@ -96,6 +96,7 @@ include __DIR__ . '/../layouts/header.php';
                         <th>Pendiente Hoy</th>
                         <th>Tarjetas Activas</th>
                         <th>Completadas</th>
+                        <th>Acción</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -106,10 +107,14 @@ include __DIR__ . '/../layouts/header.php';
                         <td>$<?php echo number_format($cobrador['pendiente_hoy'], 2); ?></td>
                         <td><?php echo intval($cobrador['tarjetas_activas']); ?></td>
                         <td><?php echo intval($cobrador['completadas']); ?></td>
+                        <td>
+                            <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=detalle_cobrador&id=<?php echo $cobrador['id']; ?>"
+                               class="btn btn-sm btn-primary">Ver detalle hoy</a>
+                        </td>
                     </tr>
                     <?php endforeach; ?>
                     <?php if (empty($cobradores_detalle)): ?>
-                    <tr><td colspan="5" style="text-align:center;color:#888;">No hay cobradores activos</td></tr>
+                    <tr><td colspan="6" style="text-align:center;color:#888;">No hay cobradores activos</td></tr>
                     <?php endif; ?>
                 </tbody>
             </table>
