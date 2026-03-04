@@ -783,24 +783,41 @@ function calcularEstadisticas() {
 
 function aplicarFiltroTarjetas($tarjetas, $filtro) {
     $hoy = date('Y-m-d');
+    
     switch ($filtro) {
         case 'cobradas_hoy':
+            // Tarjetas donde se registró un pago hoy (pago > 0 y fecha = hoy)
             return array_filter($tarjetas, function($t) use ($hoy) {
+                if (!isset($t['pagos']) || empty($t['pagos'])) return false;
+                
                 foreach ($t['pagos'] as $p) {
-                    $es_dia_valido = ($t['tipo'] !== 'antigua_semanal') || ((intval($p['dia']) % 7) === 0);
-                    if ($p['fecha'] === $hoy && $p['pago'] > 0 && $es_dia_valido) return true;
+                    // Buscar algún pago registrado hoy con monto > 0
+                    if (isset($p['fecha']) && $p['fecha'] === $hoy && floatval($p['pago'] ?? 0) > 0) {
+                        return true;
+                    }
                 }
                 return false;
             });
+            
         case 'no_cobradas_hoy':
+            // Tarjetas donde se visitó hoy pero no se cobró, o está pendiente para hoy
             return array_filter($tarjetas, function($t) use ($hoy) {
+                if (!isset($t['pagos']) || empty($t['pagos'])) return false;
+                
                 foreach ($t['pagos'] as $p) {
-                    $es_dia_valido = ($t['tipo'] !== 'antigua_semanal') || ((intval($p['dia']) % 7) === 0);
-                    if ($p['fecha'] === $hoy && $p['pago'] == 0 && $es_dia_valido) return true;
+                    // Buscar pagos: pendiente (pago=0 y fecha_registro hoy) O programado para hoy sin cobrar
+                    if (isset($p['fecha']) && $p['fecha'] === $hoy) {
+                        if (floatval($p['pago'] ?? 0) == 0) {
+                            // Visitado hoy pero no cobró (pendiente o programado)
+                            return true;
+                        }
+                    }
                 }
                 return false;
             });
+            
         default:
+            // 'todas'
             return $tarjetas;
     }
 }
