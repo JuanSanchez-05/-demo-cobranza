@@ -212,14 +212,14 @@ if (!isset($_GET['key']) || $_GET['key'] !== $SETUP_KEY) {
                 // Crear usuario super admin si no existe
                 echo '<div class="status info"><strong>👤 Verificando usuario super admin...</strong></div>';
                 
-                $stmt = $conn->prepare("SELECT COUNT(*) FROM usuarios WHERE username = 'superadmin'");
+                $stmt = $conn->prepare("SELECT COUNT(*) FROM usuarios WHERE telefono = 'superadmin'");
                 $stmt->execute();
                 $exists = $stmt->fetchColumn();
                 
                 if ($exists == 0) {
                     $stmt = $conn->prepare("
-                        INSERT INTO usuarios (username, password, nombre_completo, rol, activo, created_at) 
-                        VALUES ('superadmin', :password, 'Super Administrador', 'admin', 1, NOW())
+                        INSERT INTO usuarios (telefono, password, nombre, rol, activo, fecha_creacion) 
+                        VALUES ('superadmin', :password, 'Super Administrador', 'administrador', 1, NOW())
                     ");
                     $stmt->execute([':password' => password_hash('admin123', PASSWORD_DEFAULT)]);
                     echo '<div class="status success">✅ Usuario super admin creado</div>';

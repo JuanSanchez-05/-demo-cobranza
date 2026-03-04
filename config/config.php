@@ -92,6 +92,10 @@ class Database {
             }
             
             $this->conn = new PDO($dsn, $this->username, $this->password, $options);
+
+            if ($this->driver === 'pgsql') {
+                $this->ensurePostgresUsuariosCompatibility();
+            }
             
             // Configuraciones específicas de MySQL
             if ($this->driver === 'mysql') {
@@ -140,6 +144,39 @@ class Database {
     
     public function closeConnection() {
         $this->conn = null;
+    }
+
+    private function columnExists($table, $column) {
+        $stmt = $this->conn->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ? AND column_name = ? LIMIT 1");
+        $stmt->execute([$table, $column]);
+        return (bool)$stmt->fetchColumn();
+    }
+
+    private function ensurePostgresUsuariosCompatibility() {
+        if ($this->driver !== 'pgsql') {
+            return;
+        }
+
+        try {
+            $this->conn->exec("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS telefono VARCHAR(20)");
+            $this->conn->exec("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS nombre VARCHAR(100)");
+            $this->conn->exec("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+            $this->conn->exec("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP");
+
+            if ($this->columnExists('usuarios', 'username') && $this->columnExists('usuarios', 'telefono')) {
+                $this->conn->exec("UPDATE usuarios SET telefono = username WHERE telefono IS NULL AND username IS NOT NULL");
+            }
+
+            if ($this->columnExists('usuarios', 'nombre_completo') && $this->columnExists('usuarios', 'nombre')) {
+                $this->conn->exec("UPDATE usuarios SET nombre = nombre_completo WHERE nombre IS NULL AND nombre_completo IS NOT NULL");
+            }
+
+            $this->conn->exec("UPDATE usuarios SET rol = 'administrador' WHERE rol = 'admin'");
+            $this->conn->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_telefono_unique ON usuarios(telefono)");
+            $this->conn->exec("CREATE INDEX IF NOT EXISTS idx_usuarios_rol ON usuarios(rol)");
+        } catch (PDOException $e) {
+            error_log('Compatibilidad PostgreSQL (usuarios) falló: ' . $e->getMessage());
+        }
     }
 }
 

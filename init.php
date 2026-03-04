@@ -111,13 +111,13 @@ if (!$authorized) {
             // Crear super admin
             echo '<div class="info">👤 Verificando super admin...</div>';
             
-            $stmt = $conn->prepare("SELECT COUNT(*) FROM usuarios WHERE username = 'superadmin'");
+            $stmt = $conn->prepare("SELECT COUNT(*) FROM usuarios WHERE telefono = 'superadmin'");
             $stmt->execute();
             
             if ($stmt->fetchColumn() == 0) {
                 $stmt = $conn->prepare("
-                    INSERT INTO usuarios (username, password, nombre_completo, rol, activo, created_at) 
-                    VALUES ('superadmin', :pass, 'Super Administrador', 'admin', 1, NOW())
+                    INSERT INTO usuarios (telefono, password, nombre, rol, activo, fecha_creacion) 
+                    VALUES ('superadmin', :pass, 'Super Administrador', 'administrador', 1, NOW())
                 ");
                 $stmt->execute([':pass' => password_hash('admin123', PASSWORD_DEFAULT)]);
                 echo '<div class="success">✅ Super admin creado</div>';
