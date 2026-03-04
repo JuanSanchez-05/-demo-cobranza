@@ -45,6 +45,7 @@ include __DIR__ . '/../layouts/header.php';
                                 <th>Cobrado</th>
                                 <th>Estado de Visita</th>
                                 <th>Monto a Registrar</th>
+                                <th>Acción Rápida</th>
                                 <th>Registrar</th>
                             </tr>
                         </thead>
@@ -108,6 +109,15 @@ include __DIR__ . '/../layouts/header.php';
                                            class="form-control form-control-sm">
                                     <input type="hidden" name="pagos[<?php echo $index; ?>][tarjeta_id]" value="<?php echo $cobro['id']; ?>">
                                     <input type="hidden" name="pagos[<?php echo $index; ?>][dia]" value="<?php echo $cobro['dia']; ?>">
+                                </td>
+                                <td>
+                                    <?php if ($ya_cobrado > 0): ?>
+                                        <button type="button" class="btn btn-sm btn-secondary" disabled>Pagado</button>
+                                    <?php else: ?>
+                                        <button type="button" class="btn btn-sm btn-warning" onclick="marcarFilaPendiente(<?php echo $index; ?>)">
+                                            Marcar pendiente
+                                        </button>
+                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <label>
@@ -247,6 +257,20 @@ function actualizarMontoPorEstado(index, estado) {
         montoInput.setAttribute('readonly', 'readonly');
     } else {
         montoInput.removeAttribute('readonly');
+    }
+}
+
+function marcarFilaPendiente(index) {
+    const estadoSelect = document.querySelector(`select[name="pagos[${index}][estado]"]`);
+    const checkbox = document.querySelectorAll('.cobro-checkbox')[index];
+
+    if (estadoSelect && !estadoSelect.disabled) {
+        estadoSelect.value = 'pendiente';
+        actualizarMontoPorEstado(index, 'pendiente');
+    }
+
+    if (checkbox && !checkbox.disabled) {
+        checkbox.checked = true;
     }
 }
 
