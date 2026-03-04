@@ -186,9 +186,13 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             $monto_pago = $pago_existente ? floatval($pago_existente['pago']) : 0;
                             $nota_pago = $pago_existente ? trim((string)($pago_existente['observacion'] ?? '')) : '';
                             $pago_registrado = ($pago_existente && $monto_pago > 0);
+                            $es_pendiente_marcado = ($pago_existente && $monto_pago == 0 && !empty($pago_existente['fecha_registro']));
 
                             $puede_registrar = false;
-                            if (!$pago_registrado && !$primer_pendiente_habilitado) {
+                            if (!$pago_registrado && !$es_pendiente_marcado && !$primer_pendiente_habilitado) {
+                                $puede_registrar = true;
+                                $primer_pendiente_habilitado = true;
+                            } elseif ($es_pendiente_marcado && !$primer_pendiente_habilitado) {
                                 $puede_registrar = true;
                                 $primer_pendiente_habilitado = true;
                             }
@@ -219,28 +223,37 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             </td>
                             <!-- Columna 6: Acción -->
                             <td style="white-space: nowrap;">
-                                <?php if (!$pago_registrado): ?>
-                                    <?php if ($puede_registrar): ?>
-                                        <form method="POST" style="display: inline;">
-                                            <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
-                                            <input type="hidden" name="monto" value="<?php echo $pago_unitario; ?>">
-                                            <button type="submit" name="registrar_pago" class="btn btn-sm btn-success">
-                                                Registrar Pago
-                                            </button>
-                                        </form>
-                                        <form method="POST" style="display: inline; margin-left: 5px;">
-                                            <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
-                                            <button type="submit" name="marcar_pendiente" class="btn btn-sm btn-warning">
-                                                ⭕ Marcar Pendiente
-                                            </button>
-                                        </form>
-                                    <?php else: ?>
-                                        <button type="button" class="btn btn-sm btn-secondary" disabled>
-                                            Bloqueado
-                                        </button>
-                                    <?php endif; ?>
-                                <?php else: ?>
+                                <?php if ($pago_registrado): ?>
                                     <span class="text-muted">✓ Pagado</span>
+                                <?php elseif ($es_pendiente_marcado): ?>
+                                    <div style="margin-bottom: 8px;">
+                                        <span class="badge" style="background-color: #ffc107; color: #000;">⭕ Pendiente</span>
+                                    </div>
+                                    <form method="POST" style="display: inline;">
+                                        <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
+                                        <input type="hidden" name="monto" value="<?php echo $pago_unitario; ?>">
+                                        <button type="submit" name="registrar_pago" class="btn btn-sm btn-info">
+                                            💰 Cobrar
+                                        </button>
+                                    </form>
+                                <?php elseif ($puede_registrar): ?>
+                                    <form method="POST" style="display: inline;">
+                                        <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
+                                        <input type="hidden" name="monto" value="<?php echo $pago_unitario; ?>">
+                                        <button type="submit" name="registrar_pago" class="btn btn-sm btn-success">
+                                            Registrar Pago
+                                        </button>
+                                    </form>
+                                    <form method="POST" style="display: inline; margin-left: 5px;">
+                                        <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
+                                        <button type="submit" name="marcar_pendiente" class="btn btn-sm btn-warning">
+                                            ⭕ Marcar Pendiente
+                                        </button>
+                                    </form>
+                                <?php else: ?>
+                                    <button type="button" class="btn btn-sm btn-secondary" disabled>
+                                        Bloqueado
+                                    </button>
                                 <?php endif; ?>
                             </td>
                         </tr>
