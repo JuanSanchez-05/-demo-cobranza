@@ -10,7 +10,8 @@ $stats = obtenerEstadisticasTrabajador($trabajador_id);
 $total_tarjetas = $stats['total_tarjetas'];
 $cobrado_hoy = $stats['cobrado_hoy']; 
 $debe_cobrar_hoy = $stats['debe_cobrar_hoy'];
-$pendiente_hoy = $stats['pendiente_total'];
+$pendiente_hoy = $stats['pendiente_hoy'];      // Lo que vence HOY y no está pagado
+$pendiente_general = $stats['pendiente_general']; // Total de saldos pendientes
 $completadas = $stats['completadas'];
 
 // Obtener personas que deben pagar hoy
@@ -84,8 +85,20 @@ $hoy_dia_es = $dia_semana_es[$dia_semana];
                 </svg>
             </div>
             <div class="stat-content">
-                <h3>Pendiente Total</h3>
+                <h3>Pendiente HOY</h3>
                 <p class="stat-value">$<?php echo number_format($pendiente_hoy, 2); ?></p>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <h3>Pendiente General</h3>
+                <p class="stat-value" style="color: #ff9800;">$<?php echo number_format($pendiente_general, 2); ?></p>
             </div>
         </div>
 

@@ -601,6 +601,7 @@ function obtenerEstadisticasTrabajador($trabajador_id) {
     $stmt->execute([$trabajador_id, $hoy]);
     $debe_cobrar_hoy = $stmt->fetchColumn();
 
+    // Pendiente total general (suma de todos los saldos finales)
     $stmt = $db->prepare("
         SELECT COALESCE(SUM(p.saldo), 0)
         FROM pagos p
@@ -612,9 +613,23 @@ function obtenerEstadisticasTrabajador($trabajador_id) {
         WHERE c.trabajador_id = ? AND t.estado = 'activo'
     ");
     $stmt->execute([$trabajador_id]);
-    $pendiente_total = $stmt->fetchColumn();
+    $pendiente_general = $stmt->fetchColumn();
 
-    return compact('total_tarjetas', 'completadas', 'cobrado_hoy', 'debe_cobrar_hoy', 'pendiente_total');
+    // Pendiente de HOY (saldo actual de los padrones que vencen hoy)
+    $stmt = $db->prepare("
+        SELECT COALESCE(SUM(p.saldo), 0)
+        FROM pagos p
+        JOIN tarjetas t ON p.tarjeta_id = t.id
+        JOIN carteras c ON t.cartera_id = c.id
+        WHERE c.trabajador_id = ? AND p.fecha = ? 
+          AND t.estado = 'activo'
+          AND p.pago = 0
+          AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
+    ");
+    $stmt->execute([$trabajador_id, $hoy]);
+    $pendiente_hoy = $stmt->fetchColumn();
+
+    return compact('total_tarjetas', 'completadas', 'cobrado_hoy', 'debe_cobrar_hoy', 'pendiente_hoy', 'pendiente_general');
 }
 
 function obtenerCobrosHoy($trabajador_id) {
