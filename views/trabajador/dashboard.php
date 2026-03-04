@@ -11,7 +11,6 @@ $total_tarjetas = $stats['total_tarjetas'];
 $cobrado_hoy = $stats['cobrado_hoy']; 
 $debe_cobrar_hoy = $stats['debe_cobrar_hoy'];
 $pendiente_hoy = $stats['pendiente_hoy'];      // Lo que vence HOY y no está pagado
-$pendiente_general = $stats['pendiente_general']; // Total de saldos pendientes
 $completadas = $stats['completadas'];
 
 // Obtener personas que deben pagar hoy
@@ -97,18 +96,6 @@ $hoy_dia_es = $dia_semana_es[$dia_semana];
                 </svg>
             </div>
             <div class="stat-content">
-                <h3>Pendiente General</h3>
-                <p class="stat-value" style="color: #ff9800;">$<?php echo number_format($pendiente_general, 2); ?></p>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-                </svg>
-            </div>
-            <div class="stat-content">
                 <h3>Tarjetas Completadas</h3>
                 <p class="stat-value text-success"><?php echo intval($completadas ?? 0); ?></p>
             </div>
@@ -125,6 +112,7 @@ $hoy_dia_es = $dia_semana_es[$dia_semana];
                     $contador = count($cobros_hoy);
                     foreach ($cobros_hoy as $cobro): 
                         $ya_cobrado = $cobro['ya_cobrado'];
+                        $estado_visita = $cobro['estado_visita'] ?? ($ya_cobrado ? 'cobrado' : 'programado');
                     ?>
                     <div class="cobro-item <?php echo $ya_cobrado ? 'cobrado' : 'pendiente'; ?>">
                         <div class="cobro-info">
@@ -137,7 +125,17 @@ $hoy_dia_es = $dia_semana_es[$dia_semana];
                         <div class="cobro-monto">
                             <span class="monto">$<?php echo number_format($cobro['monto'], 2); ?></span>
                             <span class="status <?php echo $ya_cobrado ? 'cobrado' : 'pendiente'; ?>">
-                                <?php echo $ya_cobrado ? '✓ Cobrado' : '⏰ Pendiente'; ?>
+                                <?php
+                                if ($estado_visita === 'pagado_retraso') {
+                                    echo '✓ Pagado con retraso';
+                                } elseif ($ya_cobrado) {
+                                    echo '✓ Cobrado';
+                                } elseif ($estado_visita === 'pendiente') {
+                                    echo '⏰ Pendiente';
+                                } else {
+                                    echo '📌 Programado';
+                                }
+                                ?>
                             </span>
                         </div>
                         <div class="cobro-accion">

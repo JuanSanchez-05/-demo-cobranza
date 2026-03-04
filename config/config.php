@@ -96,6 +96,8 @@ class Database {
             if ($this->driver === 'pgsql') {
                 $this->ensurePostgresUsuariosCompatibility();
             }
+
+            $this->ensurePagosCompatibility();
             
             // Configuraciones específicas de MySQL
             if ($this->driver === 'mysql') {
@@ -147,8 +149,14 @@ class Database {
     }
 
     private function columnExists($table, $column) {
-        $stmt = $this->conn->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ? AND column_name = ? LIMIT 1");
-        $stmt->execute([$table, $column]);
+        if ($this->driver === 'pgsql') {
+            $stmt = $this->conn->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = ? AND column_name = ? LIMIT 1");
+            $stmt->execute([$table, $column]);
+            return (bool)$stmt->fetchColumn();
+        }
+
+        $stmt = $this->conn->prepare("SELECT 1 FROM information_schema.columns WHERE table_schema = ? AND table_name = ? AND column_name = ? LIMIT 1");
+        $stmt->execute([$this->db_name, $table, $column]);
         return (bool)$stmt->fetchColumn();
     }
 
@@ -176,6 +184,16 @@ class Database {
             $this->conn->exec("CREATE INDEX IF NOT EXISTS idx_usuarios_rol ON usuarios(rol)");
         } catch (PDOException $e) {
             error_log('Compatibilidad PostgreSQL (usuarios) falló: ' . $e->getMessage());
+        }
+    }
+
+    private function ensurePagosCompatibility() {
+        try {
+            if (!$this->columnExists('pagos', 'observacion')) {
+                $this->conn->exec("ALTER TABLE pagos ADD COLUMN observacion TEXT NULL");
+            }
+        } catch (PDOException $e) {
+            error_log('Compatibilidad pagos (observacion) falló: ' . $e->getMessage());
         }
     }
 }
@@ -596,6 +614,7 @@ function obtenerEstadisticasTrabajador($trabajador_id) {
         JOIN tarjetas t ON p.tarjeta_id = t.id
         JOIN carteras c ON t.cartera_id = c.id
         WHERE c.trabajador_id = ? AND p.fecha = ? AND p.pago = 0
+          AND p.fecha_registro IS NULL
           AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
     ");
     $stmt->execute([$trabajador_id, $hoy]);
@@ -616,16 +635,17 @@ function obtenerEstadisticasTrabajador($trabajador_id) {
     $pendiente_general = $stmt->fetchColumn();
 
     // Pendiente de HOY (saldo actual de los padrones que vencen hoy)
-    $stmt = $db->prepare("
-        SELECT COALESCE(SUM(p.saldo), 0)
-        FROM pagos p
-        JOIN tarjetas t ON p.tarjeta_id = t.id
-        JOIN carteras c ON t.cartera_id = c.id
-        WHERE c.trabajador_id = ? AND p.fecha = ? 
-          AND t.estado = 'activo'
-          AND p.pago = 0
-          AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
-    ");
+        $stmt = $db->prepare("
+                SELECT COALESCE(SUM(p.saldo), 0)
+                FROM pagos p
+                JOIN tarjetas t ON p.tarjeta_id = t.id
+                JOIN carteras c ON t.cartera_id = c.id
+                WHERE c.trabajador_id = ? AND p.fecha = ? 
+                    AND t.estado = 'activo'
+                    AND p.pago = 0
+                    AND p.fecha_registro IS NULL
+                    AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
+        ");
     $stmt->execute([$trabajador_id, $hoy]);
     $pendiente_hoy = $stmt->fetchColumn();
 
@@ -638,15 +658,37 @@ function obtenerCobrosHoy($trabajador_id) {
     $stmt = $db->prepare("
         SELECT t.id, t.nombre, t.direccion, t.tipo, p.dia,
                t.pago_semanal, t.cuota_diaria, t.pago AS pago_nuevo,
-               p.pago AS ya_cobrado_monto
+               p.pago AS ya_cobrado_monto,
+               p.fecha,
+               p.fecha_registro,
+               p.observacion,
+               CASE
+                   WHEN p.pago > 0 AND LOWER(COALESCE(p.observacion, '')) LIKE '%pagado con retraso%' THEN 'pagado_retraso'
+                   WHEN p.pago > 0 THEN 'cobrado'
+                   WHEN p.pago = 0 AND p.fecha < ? AND p.fecha_registro IS NOT NULL THEN 'pendiente'
+                   WHEN p.pago = 0 AND p.fecha = ? AND p.fecha_registro IS NOT NULL THEN 'pendiente'
+                   ELSE 'programado'
+               END AS estado_visita
         FROM pagos p
         JOIN tarjetas t ON p.tarjeta_id = t.id
         JOIN carteras c ON t.cartera_id = c.id
-                WHERE c.trabajador_id = ? AND p.fecha = ? AND t.estado = 'activo'
-                    AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
-        ORDER BY t.nombre
+        WHERE c.trabajador_id = ? AND t.estado = 'activo'
+          AND (
+              p.fecha = ?
+              OR (p.pago = 0 AND p.fecha < ? AND p.fecha_registro IS NOT NULL)
+          )
+          AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
+        ORDER BY
+            CASE
+                WHEN p.pago = 0 AND p.fecha = ? AND p.fecha_registro IS NULL THEN 1
+                WHEN p.pago = 0 AND p.fecha_registro IS NOT NULL THEN 2
+                WHEN p.pago > 0 THEN 3
+                ELSE 4
+            END,
+            p.fecha,
+            t.nombre
     ");
-    $stmt->execute([$trabajador_id, $hoy]);
+    $stmt->execute([$hoy, $hoy, $trabajador_id, $hoy, $hoy, $hoy]);
     $rows = $stmt->fetchAll();
 
     $cobros = [];
@@ -667,6 +709,9 @@ function obtenerCobrosHoy($trabajador_id) {
             'cuota_diaria'=> floatval($r['cuota_diaria'] ?? 0),
             'pago_nuevo'  => floatval($r['pago_nuevo'] ?? 0),
             'ya_cobrado_monto' => floatval($r['ya_cobrado_monto'] ?? 0),
+            'fecha'       => $r['fecha'] ?? null,
+            'observacion' => $r['observacion'] ?? null,
+            'estado_visita' => $r['estado_visita'] ?? 'programado',
             'monto'       => $monto,
             'ya_cobrado'  => $r['ya_cobrado_monto'] > 0,
         ];
@@ -1113,20 +1158,59 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     $pago = $stmt->fetch();
     
     if (!$pago) return false;
+
+    $hoy = date('Y-m-d');
+    $es_pagado_con_retraso = (
+        floatval($pago['pago'] ?? 0) <= 0 &&
+        !empty($pago['fecha_registro']) &&
+        !empty($pago['fecha']) &&
+        $pago['fecha'] < $hoy
+    );
+
+    $observacion_actual = trim((string)($pago['observacion'] ?? ''));
+    $observacion_nueva = $observacion_actual;
+    if ($es_pagado_con_retraso && stripos($observacion_actual, 'pagado con retraso') === false) {
+        $observacion_nueva = $observacion_actual === ''
+            ? 'pagado con retraso'
+            : ($observacion_actual . ' | pagado con retraso');
+    }
     
     // El saldo no cambia - representa lo que quedaba ANTES de este pago
     // Solo actualizamos el campo 'pago' para indicar que se realizó
     $stmt = $db->prepare("
         UPDATE pagos 
-        SET pago = ?, cobrador_id = ?, fecha = CURRENT_DATE, fecha_registro = NOW()
+        SET pago = ?, cobrador_id = ?, fecha = CURRENT_DATE, fecha_registro = NOW(), observacion = ?
         WHERE tarjeta_id = ? AND dia = ?
     ");
-    $result = $stmt->execute([$monto, $cobrador_id, $tarjeta_id, $dia]);
+    $result = $stmt->execute([$monto, $cobrador_id, $observacion_nueva, $tarjeta_id, $dia]);
     
     // Verificar si la tarjeta está completada
     verificarTarjetaCompletada($tarjeta_id);
     
     return $result;
+}
+
+function registrarPagoPendiente($tarjeta_id, $dia, $cobrador_id = null) {
+    $db = getDB();
+
+    $stmt = $db->prepare("SELECT pago FROM pagos WHERE tarjeta_id = ? AND dia = ?");
+    $stmt->execute([$tarjeta_id, $dia]);
+    $pago = $stmt->fetch();
+
+    if (!$pago) return false;
+
+    // Si ya fue cobrado, no permitir sobreescribir como pendiente
+    if (floatval($pago['pago']) > 0) {
+        return false;
+    }
+
+    $stmt = $db->prepare("
+        UPDATE pagos
+        SET pago = 0, cobrador_id = ?, fecha = CURRENT_DATE, fecha_registro = NOW()
+        WHERE tarjeta_id = ? AND dia = ?
+    ");
+
+    return $stmt->execute([$cobrador_id, $tarjeta_id, $dia]);
 }
 
 function actualizarSaldosPosteriores($tarjeta_id, $dia_inicio, $cambio_saldo) {

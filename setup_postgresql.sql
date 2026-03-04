@@ -156,6 +156,7 @@ CREATE TABLE pagos (
     fecha DATE NOT NULL,
     pago NUMERIC(10,2) DEFAULT 0,
     saldo NUMERIC(10,2) NOT NULL,
+    observacion TEXT NULL,
 
     cobrador_id BIGINT NULL,
     fecha_registro TIMESTAMP NULL,

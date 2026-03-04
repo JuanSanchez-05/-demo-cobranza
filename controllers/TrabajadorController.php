@@ -114,24 +114,40 @@ switch ($action) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pagos = $_POST['pagos'] ?? [];
             $exitosos = 0;
+            $pendientes_marcados = 0;
             $errores = 0;
             
             foreach ($pagos as $pago_data) {
                 $tarjeta_id = intval($pago_data['tarjeta_id'] ?? 0);
                 $dia = intval($pago_data['dia'] ?? 0);
                 $monto = floatval($pago_data['monto'] ?? 0);
+                $estado = $pago_data['estado'] ?? 'cobrado';
                 
-                if ($tarjeta_id > 0 && $dia > 0 && $monto > 0) {
-                    $resultado = registrarPago($tarjeta_id, $dia, $monto, $trabajador_id);
-                    if ($resultado) {
-                        $exitosos++;
+                if ($tarjeta_id > 0 && $dia > 0) {
+                    if ($estado === 'pendiente') {
+                        $resultado = registrarPagoPendiente($tarjeta_id, $dia, $trabajador_id);
+                        if ($resultado) {
+                            $pendientes_marcados++;
+                        } else {
+                            $errores++;
+                        }
                     } else {
-                        $errores++;
+                        if ($monto > 0) {
+                            $resultado = registrarPago($tarjeta_id, $dia, $monto, $trabajador_id);
+                            if ($resultado) {
+                                $exitosos++;
+                            } else {
+                                $errores++;
+                            }
+                        }
                     }
                 }
             }
             
             $mensaje = "✅ {$exitosos} pagos registrados";
+            if ($pendientes_marcados > 0) {
+                $mensaje .= ", ⭕ {$pendientes_marcados} marcados como pendientes";
+            }
             if ($errores > 0) {
                 $mensaje .= ", ❌ {$errores} errores";
             }

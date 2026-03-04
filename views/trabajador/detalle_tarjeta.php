@@ -145,6 +145,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             <th>Fecha</th>
                             <th>Pago Realizado</th>
                             <th>Saldo Pendiente</th>
+                            <th>Nota</th>
                             <th>Acción</th>
                         </tr>
                     </thead>
@@ -179,6 +180,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             
                             $fecha_pago = $pago_existente ? $pago_existente['fecha'] : 'Pendiente';
                             $monto_pago = $pago_existente ? floatval($pago_existente['pago']) : 0;
+                            $nota_pago = $pago_existente ? trim((string)($pago_existente['observacion'] ?? '')) : '';
                             $pago_registrado = ($pago_existente && $monto_pago > 0);
 
                             $puede_registrar = false;
@@ -203,7 +205,15 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             </td>
                             <!-- Columna 4: Saldo Pendiente -->
                             <td>$<?php echo number_format($saldo_despues, 2); ?></td>
-                            <!-- Columna 5: Acción -->
+                            <!-- Columna 5: Nota -->
+                            <td>
+                                <?php if ($nota_pago !== ''): ?>
+                                    <span class="text-info"><?php echo htmlspecialchars($nota_pago); ?></span>
+                                <?php else: ?>
+                                    <span class="text-muted">-</span>
+                                <?php endif; ?>
+                            </td>
+                            <!-- Columna 6: Acción -->
                             <td>
                                 <?php if (!$pago_registrado): ?>
                                     <?php if ($puede_registrar): ?>
