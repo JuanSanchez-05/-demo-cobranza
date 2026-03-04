@@ -9,6 +9,22 @@ switch ($action) {
         $stats = calcularEstadisticas();
         $todas_carteras = obtenerTodasLasCarteras();
         $todas_tarjetas = obtenerTodasLasTarjetas();
+        $cobradores_detalle = [];
+        foreach (obtenerTodosTrabajadores() as $trabajador) {
+            if (!(bool)($trabajador['activo'] ?? true)) {
+                continue;
+            }
+
+            $stats_trabajador = obtenerEstadisticasTrabajador($trabajador['id']);
+            $cobradores_detalle[] = [
+                'id' => $trabajador['id'],
+                'nombre' => $trabajador['nombre'] ?? ('Trabajador #' . $trabajador['id']),
+                'cobrado_hoy' => floatval($stats_trabajador['cobrado_hoy'] ?? 0),
+                'pendiente_hoy' => floatval($stats_trabajador['pendiente_hoy'] ?? 0),
+                'tarjetas_activas' => intval($stats_trabajador['total_tarjetas'] ?? 0),
+                'completadas' => intval($stats_trabajador['completadas'] ?? 0),
+            ];
+        }
         include __DIR__ . '/../views/admin/dashboard.php';
         break;
         

@@ -11,7 +11,7 @@ $carteras = obtenerTodasLasCarteras();
 <div class="dashboard-container">
     <div class="page-header">
         <h1>Registro de Nueva Tarjeta - <?php echo ucfirst($tipo); ?></h1>
-        <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=carteras" class="btn btn-secondary">
+        <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=dashboard" class="btn btn-secondary">
             &larr; Volver
         </a>
     </div>
@@ -312,7 +312,7 @@ $carteras = obtenerTodasLasCarteras();
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-success">Guardar Tarjeta</button>
-                <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=carteras" class="btn btn-secondary">
+                <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=dashboard" class="btn btn-secondary">
                     Cancelar
                 </a>
             </div>

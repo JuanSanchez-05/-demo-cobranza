@@ -85,6 +85,37 @@ include __DIR__ . '/../layouts/header.php';
         </div>
     </div>
 
+    <div class="section">
+        <h2>Detalle por Cobrador</h2>
+        <div class="table-container">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Cobrador</th>
+                        <th>Cobrado Hoy</th>
+                        <th>Pendiente Hoy</th>
+                        <th>Tarjetas Activas</th>
+                        <th>Completadas</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($cobradores_detalle as $cobrador): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($cobrador['nombre']); ?></td>
+                        <td class="text-success">$<?php echo number_format($cobrador['cobrado_hoy'], 2); ?></td>
+                        <td>$<?php echo number_format($cobrador['pendiente_hoy'], 2); ?></td>
+                        <td><?php echo intval($cobrador['tarjetas_activas']); ?></td>
+                        <td><?php echo intval($cobrador['completadas']); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php if (empty($cobradores_detalle)): ?>
+                    <tr><td colspan="5" style="text-align:center;color:#888;">No hay cobradores activos</td></tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <!-- Carteras por Trabajador -->
     <div class="section">
         <h2>Carteras por Trabajador</h2>
