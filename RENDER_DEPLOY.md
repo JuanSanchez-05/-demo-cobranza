@@ -108,21 +108,31 @@ Render cobra por MySQL. Si prefieres MySQL:
 
 Una vez desplegada la app:
 
-### Opción 1: Desde el Shell de Render
-1. Ve a tu Web Service en Render
-2. Haz clic en **"Shell"** (terminal)
-3. Ejecuta:
+### ⚠️ IMPORTANTE: El Shell NO está disponible en el plan gratuito
+
+El plan gratuito de Render no incluye acceso al Shell. Usa estas alternativas:
+
+### Opción 1: Setup Web (RECOMENDADO - Más fácil)
+1. Abre en tu navegador: `https://tu-app.onrender.com/setup_web.php?key=demo2026`
+2. Haz clic en **"Ejecutar Setup Ahora"**
+3. Espera a que se completen todos los pasos
+4. Verás un mensaje de éxito con las credenciales de acceso
+5. **Por seguridad:** Elimina el archivo `setup_web.php` después de usarlo
+
+### Opción 2: Desde tu computadora local
+1. Instala un cliente PostgreSQL:
+   - **pgAdmin** (GUI): https://www.pgadmin.org/download/
+   - **DBeaver** (GUI): https://dbeaver.io/download/
+   - **psql** (Terminal): incluido con PostgreSQL
+2. Copia las credenciales **External** de tu base de datos en Render
+3. Conéctate usando estas credenciales
+4. Ejecuta el contenido de `database/schema.sql` manualmente
+
+### Opción 3: Upgrade a Plan Starter ($7/mes)
+Si actualizas al plan Starter de Render, tendrás acceso al Shell y puedes ejecutar:
 ```bash
 php setup_database.php
 ```
-
-### Opción 2: Desde tu computadora local
-1. Instala PostgreSQL localmente
-2. Conéctate a tu base de datos de Render:
-```bash
-psql [External Database URL]
-```
-3. Ejecuta el SQL adaptado para PostgreSQL
 
 ---
 
@@ -138,6 +148,12 @@ psql [External Database URL]
    - ✅ Página de login funciona
    - ✅ Puedes iniciar sesión con super admin
    - ✅ Las carteras y tarjetas se muestran correctamente
+
+**Credenciales por defecto:**
+- Usuario: `superadmin`
+- Contraseña: `admin123`
+
+🔒 **Cambia la contraseña inmediatamente después del primer login**
 
 ---
 

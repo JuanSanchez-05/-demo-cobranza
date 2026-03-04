@@ -49,12 +49,28 @@ TIMEZONE = America/Mexico_City
 - Esperar 5-10 minutos mientras se despliega
 
 ### 6️⃣ Inicializar Base de Datos
-Una vez desplegado:
-1. Ir a tu Web Service → **"Shell"**
-2. Ejecutar: `php setup_database.php`
+
+**⚠️ IMPORTANTE**: El Shell NO está disponible en el plan gratuito de Render.
+
+**Usa el Setup Web** (más fácil):
+1. Abre en tu navegador: `https://tu-app.onrender.com/setup_web.php?key=demo2026`
+2. Click en **"Ejecutar Setup Ahora"**
+3. Espera a que termine (verás un mensaje de éxito)
+4. ¡Listo! Ya puedes hacer login
+
+**Alternativa** (desde tu computadora):
+1. Instala un cliente PostgreSQL (pgAdmin o DBeaver)
+2. Conéctate con las credenciales **External** del paso 2
+3. Ejecuta manualmente el contenido de `database/schema.sql`
 
 ### 7️⃣ ¡Listo!
 Tu app estará en: `https://demo-cobranza.onrender.com`
+
+**Credenciales de acceso:**
+- Usuario: `superadmin`
+- Contraseña: `admin123`
+
+🔒 **Por seguridad**: Cambia la contraseña después del primer login
 
 ---
 
@@ -92,8 +108,9 @@ Si necesitas MySQL:
 - Asegúrate de que todos los archivos están en GitHub
 
 ### Login no funciona
-- Ejecuta `php setup_database.php` desde el Shell de Render
+- Asegúrate de haber ejecutado el setup web: `https://tu-app.onrender.com/setup_web.php?key=demo2026`
 - Verifica que las tablas se crearon correctamente
+- Revisa que el usuario super admin existe en la base de datos
 
 ---
 
@@ -105,8 +122,10 @@ Si necesitas MySQL:
 - [ ] Web Service conectado a GitHub
 - [ ] Variables de entorno configuradas
 - [ ] Despliegue completado (verde)
-- [ ] Base de datos inicializada
-- [ ] Puedes hacer login
+- [ ] Base de datos inicializada con setup_web.php
+- [ ] Puedes hacer login con superadmin/admin123
+- [ ] Contraseña cambiada por seguridad
+- [ ] Archivo setup_web.php eliminado (opcional)
 
 ---
 
