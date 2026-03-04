@@ -2,7 +2,8 @@
 $titulo = 'Mi Cartera - Trabajador';
 include __DIR__ . '/../layouts/header.php';
 
-// La variable $filtro viene del controlador, pero nos aseguramos de tener un valor por defecto
+// La variable $filtro viene del controlador
+// Si no viene, obtenerla del GET (para que funcione si se llama directamente)
 if (!isset($filtro)) {
     $filtro = $_GET['filtro'] ?? 'todas';
 }
@@ -105,19 +106,23 @@ $porcentaje_cartera = $total_cartera > 0 ? ($cobrado_cartera / $total_cartera) *
     </div>
 
     <!-- Filtros -->
-    <div class="filters">
+    <div class="filters" style="margin-bottom: 20px;">
         <a href="<?php echo BASE_URL; ?>controllers/TrabajadorController.php?action=carteras&filtro=todas" 
-           class="btn <?php echo $filtro === 'todas' ? 'btn-primary' : 'btn-secondary'; ?>">
-            Todas
+           class="btn <?php echo ($filtro === 'todas' || empty($_GET['filtro'])) ? 'btn-primary' : 'btn-outline-secondary'; ?>"
+           style="<?php echo ($filtro === 'todas' || empty($_GET['filtro'])) ? 'background-color: #007bff; color: white; border-color: #007bff;' : ''; ?>">
+            📋 TODAS
         </a>
         <a href="<?php echo BASE_URL; ?>controllers/TrabajadorController.php?action=carteras&filtro=cobradas_hoy" 
-           class="btn <?php echo $filtro === 'cobradas_hoy' ? 'btn-success' : 'btn-secondary'; ?>">
-            Cobradas Hoy
+           class="btn <?php echo $filtro === 'cobradas_hoy' ? 'btn-success' : 'btn-outline-secondary'; ?>"
+           style="<?php echo $filtro === 'cobradas_hoy' ? 'background-color: #28a745; color: white; border-color: #28a745;' : ''; ?>">
+            ✓ COBRADAS HOY
         </a>
         <a href="<?php echo BASE_URL; ?>controllers/TrabajadorController.php?action=carteras&filtro=no_cobradas_hoy" 
-           class="btn <?php echo $filtro === 'no_cobradas_hoy' ? 'btn-warning' : 'btn-secondary'; ?>">
-            No Cobradas Hoy
+           class="btn <?php echo $filtro === 'no_cobradas_hoy' ? 'btn-warning' : 'btn-outline-secondary'; ?>"
+           style="<?php echo $filtro === 'no_cobradas_hoy' ? 'background-color: #ffc107; color: black; border-color: #ffc107;' : ''; ?>">
+            ⏳ NO COBRADAS HOY
         </a>
+    </div>
     </div>
 
     <div class="table-container">
