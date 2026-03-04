@@ -32,14 +32,26 @@ class Database {
     private $db_name;
     private $username;
     private $password;
+    private $port;
+    private $driver;
     private $conn;
     
     public function __construct() {
-        // Soporte para variables de entorno (producción) o valores por defecto (XAMPP local)
-        $this->host = getenv('DB_HOST') ?: 'localhost:3307';
+        // Detectar si estamos en producción (PostgreSQL) o local (MySQL)
+        $this->host = getenv('DB_HOST') ?: 'localhost';
         $this->db_name = getenv('DB_NAME') ?: 'cobranza_db';
         $this->username = getenv('DB_USER') ?: 'root';
         $this->password = getenv('DB_PASSWORD') ?: '';
+        $this->port = getenv('DB_PORT') ?: '3307';
+        
+        // Si DB_HOST contiene 'render.com' o 'railway' o DB_PORT es 5432, usar PostgreSQL
+        if (strpos($this->host, 'render.com') !== false || 
+            strpos($this->host, 'railway') !== false || 
+            $this->port == '5432') {
+            $this->driver = 'pgsql';
+        } else {
+            $this->driver = 'mysql';
+        }
     }
     
     public function getConnection() {
@@ -50,45 +62,48 @@ class Database {
                 return $this->conn; // Conexión sigue activa
             } catch (PDOException $e) {
                 // Conexión perdida, crear nueva
-                error_log("Conexión MySQL perdida, creando nueva conexión...");
+                error_log("Conexión perdida, creando nueva conexión...");
                 $this->conn = null;
             }
         }
         
         try {
-            // Primero intentar crear la base de datos si no existe
-            $this->createDatabaseIfNotExists();
-            
-            // Luego conectar a la base de datos específica
-            $this->conn = new PDO(
-                "mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=utf8mb4",
-                $this->username,
-                $this->password,
-                [
+            // Conectar según el driver detectado
+            if ($this->driver === 'pgsql') {
+                // PostgreSQL (Render, Railway, etc.)
+                $dsn = "pgsql:host={$this->host};port={$this->port};dbname={$this->db_name}";
+                $options = [
+                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                    PDO::ATTR_EMULATE_PREPARES => false,
+                ];
+            } else {
+                // MySQL (XAMPP local)
+                $dsn = "mysql:host={$this->host};port={$this->port};dbname={$this->db_name};charset=utf8mb4";
+                $options = [
                     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false,
                     PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
-                    // Optimizaciones para mejor rendimiento
-                    PDO::ATTR_PERSISTENT => false, // Conexiones no persistentes para evitar problemas
+                    PDO::ATTR_PERSISTENT => false,
                     PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
                     PDO::MYSQL_ATTR_LOCAL_INFILE => false,
-                    // Configuraciones adicionales para evitar timeouts
-                    PDO::MYSQL_ATTR_INIT_COMMAND => "SET SESSION wait_timeout=28800, interactive_timeout=28800"
-                ]
-            );
+                ];
+            }
             
-            // Configurar timeouts y optimizaciones adicionales para evitar desconexiones
-            $this->conn->exec("SET SESSION wait_timeout=28800");
-            $this->conn->exec("SET SESSION interactive_timeout=28800");
-            $this->conn->exec("SET SESSION net_read_timeout=300");
-            $this->conn->exec("SET SESSION net_write_timeout=300");
-            $this->conn->exec("SET SESSION lock_wait_timeout=300");
-            $this->conn->exec("SET SESSION innodb_lock_wait_timeout=300");
+            $this->conn = new PDO($dsn, $this->username, $this->password, $options);
             
-            // Configuraciones adicionales para mejorar la estabilidad
-            $this->conn->exec("SET SESSION sql_mode='NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO'");
-            $this->conn->exec("SET SESSION autocommit=1");
+            // Configuraciones específicas de MySQL
+            if ($this->driver === 'mysql') {
+                $this->conn->exec("SET SESSION wait_timeout=28800");
+                $this->conn->exec("SET SESSION interactive_timeout=28800");
+                $this->conn->exec("SET SESSION net_read_timeout=300");
+                $this->conn->exec("SET SESSION net_write_timeout=300");
+                $this->conn->exec("SET SESSION lock_wait_timeout=300");
+                $this->conn->exec("SET SESSION innodb_lock_wait_timeout=300");
+                $this->conn->exec("SET SESSION sql_mode='NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO'");
+                $this->conn->exec("SET SESSION autocommit=1");
+            }
             
         } catch(PDOException $exception) {
             error_log("Error de conexión: " . $exception->getMessage());
@@ -99,10 +114,15 @@ class Database {
     }
     
     private function createDatabaseIfNotExists() {
+        // Solo para MySQL local, no necesario en producción
+        if ($this->driver !== 'mysql') {
+            return;
+        }
+        
         try {
-            // Conectar sin especificar base de datos - CORREGIDO: usar el mismo puerto
+            // Conectar sin especificar base de datos
             $temp_conn = new PDO(
-                "mysql:host=" . $this->host . ";charset=utf8mb4",
+                "mysql:host={$this->host};port={$this->port};charset=utf8mb4",
                 $this->username,
                 $this->password,
                 [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
