@@ -245,14 +245,15 @@ $carteras = obtenerTodasLasCarteras();
                 <div class="form-group">
                     <label>Días a Pagar</label>
                     <input type="number" name="dias_pagar" min="1" max="365" required id="dias_pagar_nuevo">
-                    <small class="text-muted">Número de días para completar el pago</small>
+                    <small class="text-muted">Número de días para completar el pago (1-365)</small>
                 </div>
             <?php else: ?>
                 <h2>Datos del Cliente</h2>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Fecha</label>
-                        <input type="date" name="fecha" required>
+                        <label>Fecha de Inicio del Préstamo</label>
+                        <input type="date" name="fecha" id="fecha_nueva" max="<?php echo date('Y-m-d'); ?>" required>
+                        <small class="text-muted">No puede ser fecha futura</small>
                     </div>
                     <div class="form-group">
                         <label>Lugar</label>

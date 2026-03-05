@@ -32,8 +32,9 @@ include __DIR__ . '/../layouts/header.php';
                         <input type="text" name="lugar" required>
                     </div>
                     <div class="form-group">
-                        <label>Fecha</label>
-                        <input type="date" name="fecha" required>
+                        <label>Fecha de Inicio del Préstamo</label>
+                        <input type="date" name="fecha" id="fecha_semanal" max="<?php echo date('Y-m-d'); ?>" required>
+                        <small class="text-muted">No puede ser fecha futura</small>
                     </div>
                 </div>
                 
@@ -75,11 +76,13 @@ include __DIR__ . '/../layouts/header.php';
                 <div class="form-row">
                     <div class="form-group">
                         <label>Cantidad de Préstamo</label>
-                        <input type="number" id="cantidad_prestamo" name="cantidad_prestamo" step="0.01" required>
+                        <input type="number" id="cantidad_prestamo" name="cantidad_prestamo" step="0.01" min="1" required>
+                        <small class="text-muted">Debe ser mayor a $0</small>
                     </div>
                     <div class="form-group">
                         <label>Cargo del Préstamo</label>
-                        <input type="number" id="cargo_prestamo" name="cargo_prestamo" step="0.01" required>
+                        <input type="number" id="cargo_prestamo" name="cargo_prestamo" step="0.01" min="0" required>
+                        <small class="text-muted">Mínimo $0</small>
                     </div>
                 </div>
                 

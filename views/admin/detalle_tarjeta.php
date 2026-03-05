@@ -154,13 +154,21 @@ $nombre_trab = $tarjeta['trabajador_nombre'] ?? obtenerNombreUsuarioPorId($tarje
                             }
                             
                             $fecha_pago = $pago_existente ? $pago_existente['fecha'] : 'Pendiente';
+                            $fecha_cobro_real = $pago_existente && !empty($pago_existente['fecha_registro']) ? date('Y-m-d H:i', strtotime($pago_existente['fecha_registro'])) : null;
                             $monto_pago = $pago_existente ? $pago_existente['pago'] : 0;
                             $saldo = $pago_existente ? $pago_existente['saldo'] : ($total - ($i - 1) * $pago_unitario);
                             $pago_registrado = ($pago_existente && $monto_pago > 0);
                         ?>
                         <tr class="<?php echo $pago_registrado ? 'row-paid' : ''; ?>">
                             <td><?php echo htmlspecialchars($etiqueta_periodo); ?></td>
-                            <td><?php echo htmlspecialchars($fecha_pago); ?></td>
+                            <td>
+                                <?php if ($monto_pago > 0 && $fecha_cobro_real): ?>
+                                    <strong style="color: #28a745;"><?php echo $fecha_cobro_real; ?></strong>
+                                    <br><small class="text-muted">Programado: <?php echo $fecha_pago; ?></small>
+                                <?php else: ?>
+                                    <?php echo htmlspecialchars($fecha_pago); ?>
+                                <?php endif; ?>
+                            </td>
                             <td class="<?php echo $pago_registrado ? 'text-success' : ''; ?>">
                                 $<?php echo number_format($monto_pago, 2); ?>
                             </td>

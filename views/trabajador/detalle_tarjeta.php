@@ -183,6 +183,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             }
                             
                             $fecha_pago = $pago_existente ? $pago_existente['fecha'] : 'Pendiente';
+                            $fecha_cobro_real = $pago_existente && !empty($pago_existente['fecha_registro']) ? date('Y-m-d', strtotime($pago_existente['fecha_registro'])) : null;
                             $monto_pago = $pago_existente ? floatval($pago_existente['pago']) : 0;
                             $nota_pago = $pago_existente ? trim((string)($pago_existente['observacion'] ?? '')) : '';
                             $pago_registrado = ($pago_existente && $monto_pago > 0);
@@ -206,7 +207,14 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             <!-- Columna 1: Número de Día -->
                             <td><?php echo htmlspecialchars($etiqueta_periodo); ?></td>
                             <!-- Columna 2: Fecha -->
-                            <td><?php echo htmlspecialchars($fecha_pago); ?></td>
+                            <td>
+                                <?php if ($pago_registrado && $fecha_cobro_real): ?>
+                                    <strong style="color: #28a745;"><?php echo $fecha_cobro_real; ?></strong>
+                                    <br><small class="text-muted">Programado: <?php echo $fecha_pago; ?></small>
+                                <?php else: ?>
+                                    <?php echo htmlspecialchars($fecha_pago); ?>
+                                <?php endif; ?>
+                            </td>
                             <!-- Columna 3: Pago Realizado -->
                             <td class="<?php echo $pago_registrado ? 'text-success' : ''; ?>">
                                 $<?php echo number_format($monto_pago, 2); ?>
