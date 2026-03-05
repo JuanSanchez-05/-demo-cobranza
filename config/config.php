@@ -44,9 +44,10 @@ class Database {
         $this->password = getenv('DB_PASSWORD') ?: '';
         $this->port = getenv('DB_PORT') ?: '3307';
         
-        // Si DB_HOST contiene 'render.com' o 'railway' o DB_PORT es 5432, usar PostgreSQL
+        // Detectar PostgreSQL: render.com, railway, rlwy.net o puerto 5432
         if (strpos($this->host, 'render.com') !== false || 
-            strpos($this->host, 'railway') !== false || 
+            strpos($this->host, 'railway') !== false ||
+            strpos($this->host, '.rlwy.net') !== false ||
             $this->port == '5432') {
             $this->driver = 'pgsql';
         } else {
