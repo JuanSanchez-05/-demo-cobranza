@@ -37,15 +37,6 @@
                     Iniciar Sesión
                 </button>
             </form>
-            
-            <div class="login-info">
-                <h3>Usuarios de prueba:</h3>
-                <ul>
-                    <li><strong>Admin:</strong> 5550001 / admin123</li>
-                    <li><strong>Trabajador:</strong> 5550002 / trab123</li>
-                    <li><strong>Cliente:</strong> 5551001 / cliente123</li>
-                </ul>
-            </div>
         </div>
     </div>
 </body>
