@@ -65,6 +65,17 @@ switch ($action) {
             $dia = intval($_POST['dia'] ?? 0);
             $monto = floatval($_POST['monto'] ?? 0);
             
+            // Validar que el monto no exceda el saldo pendiente
+            $stmt_validar = $pdo->prepare("SELECT saldo FROM pagos WHERE tarjeta_id = ? AND dia = ?");
+            $stmt_validar->execute([$id, $dia]);
+            $pago_validar = $stmt_validar->fetch();
+            $saldo_pendiente = $pago_validar ? floatval($pago_validar['saldo']) : 0;
+            
+            if ($monto > $saldo_pendiente) {
+                header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=monto_excede_saldo');
+                exit;
+            }
+            
             if ($dia > 0 && $monto > 0) {
                 $is_semanal = ($tarjeta['tipo'] === 'antigua_semanal');
                 $total_periodos = $tarjeta['semanas_pagar'] ?: ($tarjeta['dias_pagar'] ?: 12);

@@ -1229,19 +1229,64 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
             : ($observacion_actual . ' | pagado con retraso');
     }
     
-    // El saldo no cambia - representa lo que quedaba ANTES de este pago
-    // Solo actualizamos el campo 'pago' para indicar que se realizó
+    // Calcular el saldo DESPUÉS del pago
+    $saldo_antes = floatval($pago['saldo']);
+    $saldo_despues = max(0, $saldo_antes - $monto);
+    
+    // Actualizar el pago actual
     $stmt = $db->prepare("
         UPDATE pagos 
-        SET pago = ?, cobrador_id = ?, fecha = CURRENT_DATE, fecha_registro = NOW(), observacion = ?
+        SET pago = pago + ?, saldo = ?, cobrador_id = ?, fecha = CURRENT_DATE, fecha_registro = NOW(), observacion = ?
         WHERE tarjeta_id = ? AND dia = ?
     ");
-    $result = $stmt->execute([$monto, $cobrador_id, $observacion_nueva, $tarjeta_id, $dia]);
+    $result = $stmt->execute([$monto, $saldo_despues, $cobrador_id, $observacion_nueva, $tarjeta_id, $dia]);
+    
+    // Recalcular saldos de días posteriores
+    recalcularSaldosPosteriores($tarjeta_id, $dia);
     
     // Verificar si la tarjeta está completada
     verificarTarjetaCompletada($tarjeta_id);
     
     return $result;
+}
+
+function recalcularSaldosPosteriores($tarjeta_id, $dia_desde) {
+    $db = getDB();
+    
+    // Obtener todos los pagos desde el día siguiente en adelante
+    $stmt = $db->prepare("
+        SELECT dia, pago, saldo 
+        FROM pagos 
+        WHERE tarjeta_id = ? AND dia > ? 
+        ORDER BY dia ASC
+    ");
+    $stmt->execute([$tarjeta_id, $dia_desde]);
+    $pagos_posteriores = $stmt->fetchAll();
+    
+    if (empty($pagos_posteriores)) return;
+    
+    // Obtener el saldo actual del día desde el que recalculamos
+    $stmt = $db->prepare("SELECT saldo, pago FROM pagos WHERE tarjeta_id = ? AND dia = ?");
+    $stmt->execute([$tarjeta_id, $dia_desde]);
+    $pago_base = $stmt->fetch();
+    
+    if (!$pago_base) return;
+    
+    // El saldo para el siguiente día es: saldo_actual - pago_realizado
+    $saldo_acumulado = floatval($pago_base['saldo']) - floatval($pago_base['pago']);
+    
+    // Actualizar cada día posterior
+    foreach ($pagos_posteriores as $pago_post) {
+        $dia_actual = intval($pago_post['dia']);
+        $pago_realizado = floatval($pago_post['pago']);
+        
+        // El saldo del día es lo que queda antes de pagar ese día
+        $stmt = $db->prepare("UPDATE pagos SET saldo = ? WHERE tarjeta_id = ? AND dia = ?");
+        $stmt->execute([max(0, $saldo_acumulado), $tarjeta_id, $dia_actual]);
+        
+        // Restar el pago para el siguiente día
+        $saldo_acumulado = max(0, $saldo_acumulado - $pago_realizado);
+    }
 }
 
 function registrarPagoPendiente($tarjeta_id, $dia, $cobrador_id = null) {
@@ -1280,24 +1325,32 @@ function actualizarSaldosPosteriores($tarjeta_id, $dia_inicio, $cambio_saldo) {
 function verificarTarjetaCompletada($tarjeta_id) {
     $db = getDB();
     
-    // Verificar si todos los pagos fueron realizados (pago > 0)
+    // Verificar si el último pago tiene saldo = 0
     $stmt = $db->prepare("
-        SELECT COUNT(*) as pendientes 
+        SELECT saldo, pago 
         FROM pagos 
-        WHERE tarjeta_id = ? AND pago = 0
+        WHERE tarjeta_id = ? 
+        ORDER BY dia DESC 
+        LIMIT 1
     ");
     $stmt->execute([$tarjeta_id]);
-    $pendientes = $stmt->fetch()['pendientes'];
+    $ultimo_pago = $stmt->fetch();
     
-    if ($pendientes == 0) {
-        $stmt = $db->prepare("
-            UPDATE tarjetas 
-            SET estado = 'completado', fecha_completada = CURRENT_DATE
-            WHERE id = ?
-        ");
-        return $stmt->execute([$tarjeta_id]);
+    if ($ultimo_pago) {
+        $saldo_final = floatval($ultimo_pago['saldo']) - floatval($ultimo_pago['pago']);
+        
+        if ($saldo_final <= 0) {
+            $stmt = $db->prepare("
+                UPDATE tarjetas 
+                SET estado = 'completado', fecha_completada = CURRENT_DATE
+                WHERE id = ? AND estado != 'completado'
+            ");
+            return $stmt->execute([$tarjeta_id]);
+        }
     }
     
+    return false;
+}
     return false;
 }
 

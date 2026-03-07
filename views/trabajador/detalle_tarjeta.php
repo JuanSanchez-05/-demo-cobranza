@@ -43,6 +43,8 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
             <div class="alert alert-danger">✗ Error al marcar como pendiente. Intenta nuevamente.</div>
         <?php elseif ($_GET['error'] === 'orden_pago_invalido'): ?>
             <div class="alert alert-warning">⚠ Debes registrar los pagos en orden. Primero completa el siguiente período pendiente.</div>
+        <?php elseif ($_GET['error'] === 'monto_excede_saldo'): ?>
+            <div class="alert alert-danger">✗ El monto ingresado excede el saldo pendiente. Verifica el monto máximo permitido.</div>
         <?php endif; ?>
     <?php endif; ?>
 
@@ -237,19 +239,47 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                     <div style="margin-bottom: 8px;">
                                         <span class="badge" style="background-color: #ffc107; color: #000;">⭕ Pendiente</span>
                                     </div>
-                                    <form method="POST" style="display: inline;">
+                                    <form method="POST" style="display: flex; gap: 5px; align-items: center;">
                                         <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
-                                        <input type="hidden" name="monto" value="<?php echo $pago_unitario; ?>">
+                                        <div style="display: flex; flex-direction: column; gap: 3px;">
+                                            <input 
+                                                type="number" 
+                                                name="monto" 
+                                                step="0.01" 
+                                                min="0.01" 
+                                                max="<?php echo $saldo_antes; ?>" 
+                                                value="<?php echo min($pago_unitario, $saldo_antes); ?>" 
+                                                placeholder="Monto" 
+                                                required
+                                                style="width: 90px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;"
+                                                title="Máximo: $<?php echo number_format($saldo_antes, 2); ?>"
+                                            >
+                                            <small style="color: #666; font-size: 10px;">Max: $<?php echo number_format($saldo_antes, 2); ?></small>
+                                        </div>
                                         <button type="submit" name="registrar_pago" class="btn btn-sm btn-info">
-                                            💰 Cobrar
+                                            💵 Cobrar
                                         </button>
                                     </form>
                                 <?php elseif ($puede_registrar): ?>
-                                    <form method="POST" style="display: inline;">
+                                    <form method="POST" style="display: flex; gap: 5px; align-items: center;">
                                         <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
-                                        <input type="hidden" name="monto" value="<?php echo $pago_unitario; ?>">
+                                        <div style="display: flex; flex-direction: column; gap: 3px;">
+                                            <input 
+                                                type="number" 
+                                                name="monto" 
+                                                step="0.01" 
+                                                min="0.01" 
+                                                max="<?php echo $saldo_antes; ?>" 
+                                                value="<?php echo min($pago_unitario, $saldo_antes); ?>" 
+                                                placeholder="Monto" 
+                                                required
+                                                style="width: 90px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;"
+                                                title="Máximo: $<?php echo number_format($saldo_antes, 2); ?>"
+                                            >
+                                            <small style="color: #666; font-size: 10px;">Max: $<?php echo number_format($saldo_antes, 2); ?></small>
+                                        </div>
                                         <button type="submit" name="registrar_pago" class="btn btn-sm btn-success">
-                                            Registrar Pago
+                                            💵 Ingresar Monto
                                         </button>
                                     </form>
                                     <form method="POST" style="display: inline; margin-left: 5px;">
