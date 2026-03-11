@@ -1351,6 +1351,4 @@ function verificarTarjetaCompletada($tarjeta_id) {
     
     return false;
 }
-    return false;
-}
 
