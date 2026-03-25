@@ -1207,6 +1207,32 @@ function togglearEstadoUsuario($id) {
     return $stmt->execute([$id]);
 }
 
+function obtenerMontoProgramadoDia($tarjeta_id, $saldo_antes = 0) {
+    $db = getDB();
+    $stmt = $db->prepare("SELECT tipo, pago_semanal, cuota_diaria, pago FROM tarjetas WHERE id = ?");
+    $stmt->execute([$tarjeta_id]);
+    $tarjeta = $stmt->fetch();
+
+    if (!$tarjeta) {
+        return max(0, floatval($saldo_antes));
+    }
+
+    $tipo = $tarjeta['tipo'] ?? 'nueva';
+    if ($tipo === 'antigua_semanal') {
+        $programado = floatval($tarjeta['pago_semanal'] ?? 0);
+    } elseif ($tipo === 'antigua_diaria') {
+        $programado = floatval($tarjeta['cuota_diaria'] ?? 0);
+    } else {
+        $programado = floatval($tarjeta['pago'] ?? 0);
+    }
+
+    if ($programado <= 0) {
+        return max(0, floatval($saldo_antes));
+    }
+
+    return min($programado, max(0, floatval($saldo_antes)));
+}
+
 function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     $db = getDB();
     
@@ -1236,11 +1262,23 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     // Calcular el saldo DESPUÉS del pago
     $saldo_antes = floatval($pago['saldo']);
     $saldo_despues = max(0, $saldo_antes - $monto);
+    $monto_programado_dia = obtenerMontoProgramadoDia($tarjeta_id, $saldo_antes);
+    $pago_total_dia = floatval($pago['pago']) + $monto;
+    $faltante_dia = max(0, $monto_programado_dia - $pago_total_dia);
+
+    $observaciones = [];
+    if ($es_pagado_con_retraso) {
+        $observaciones[] = 'pagado con retraso';
+    }
+    if ($faltante_dia > 0) {
+        $observaciones[] = 'Pendiente del día: $' . number_format($faltante_dia, 2);
+    }
+    $observacion_nueva = implode(' | ', $observaciones);
     
     // Actualizar el pago actual
     $stmt = $db->prepare("
         UPDATE pagos 
-        SET pago = pago + ?, saldo = ?, cobrador_id = ?, fecha = CURRENT_DATE, fecha_registro = NOW(), observacion = ?
+        SET pago = pago + ?, saldo = ?, cobrador_id = ?, fecha_registro = NOW(), observacion = ?
         WHERE tarjeta_id = ? AND dia = ?
     ");
     $result = $stmt->execute([$monto, $saldo_despues, $cobrador_id, $observacion_nueva, $tarjeta_id, $dia]);
@@ -1296,7 +1334,7 @@ function recalcularSaldosPosteriores($tarjeta_id, $dia_desde) {
 function registrarPagoPendiente($tarjeta_id, $dia, $cobrador_id = null) {
     $db = getDB();
 
-    $stmt = $db->prepare("SELECT pago FROM pagos WHERE tarjeta_id = ? AND dia = ?");
+    $stmt = $db->prepare("SELECT pago, saldo FROM pagos WHERE tarjeta_id = ? AND dia = ?");
     $stmt->execute([$tarjeta_id, $dia]);
     $pago = $stmt->fetch();
 
@@ -1307,13 +1345,18 @@ function registrarPagoPendiente($tarjeta_id, $dia, $cobrador_id = null) {
         return false;
     }
 
+    $saldo_antes = floatval($pago['saldo'] ?? 0);
+    $monto_programado_dia = obtenerMontoProgramadoDia($tarjeta_id, $saldo_antes);
+    $faltante_dia = max(0, $monto_programado_dia - floatval($pago['pago'] ?? 0));
+    $observacion = $faltante_dia > 0 ? ('Pendiente del día: $' . number_format($faltante_dia, 2)) : 'Pendiente';
+
     $stmt = $db->prepare("
         UPDATE pagos
-        SET pago = 0, cobrador_id = ?, fecha = CURRENT_DATE, fecha_registro = NOW()
+        SET pago = 0, cobrador_id = ?, fecha_registro = NOW(), observacion = ?
         WHERE tarjeta_id = ? AND dia = ?
     ");
 
-    return $stmt->execute([$cobrador_id, $tarjeta_id, $dia]);
+    return $stmt->execute([$cobrador_id, $observacion, $tarjeta_id, $dia]);
 }
 
 function actualizarSaldosPosteriores($tarjeta_id, $dia_inicio, $cambio_saldo) {

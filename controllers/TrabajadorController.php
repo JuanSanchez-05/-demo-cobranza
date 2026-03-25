@@ -84,21 +84,30 @@ switch ($action) {
 
                 if (isset($tarjeta['pagos'])) {
                     foreach ($tarjeta['pagos'] as $p) {
-                        $pagos_por_dia[intval($p['dia'])] = floatval($p['pago'] ?? 0);
+                        $dia_pago = intval($p['dia']);
+                        $monto_registrado = floatval($p['pago'] ?? 0);
+                        $marcado_pendiente = ($monto_registrado <= 0 && !empty($p['fecha_registro']));
+                        $pagos_por_dia[$dia_pago] = [
+                            'monto' => $monto_registrado,
+                            'procesado' => ($monto_registrado > 0 || $marcado_pendiente),
+                            'marcado_pendiente' => $marcado_pendiente
+                        ];
                     }
                 }
 
-                $primer_dia_pendiente = null;
+                $primer_dia_sin_procesar = null;
                 for ($periodo = 1; $periodo <= $total_periodos; $periodo++) {
                     $dia_esperado = $is_semanal ? ($periodo * 7) : $periodo;
-                    $monto_registrado = floatval($pagos_por_dia[$dia_esperado] ?? 0);
-                    if ($monto_registrado <= 0) {
-                        $primer_dia_pendiente = $dia_esperado;
+                    $estado = $pagos_por_dia[$dia_esperado] ?? ['procesado' => false, 'marcado_pendiente' => false];
+                    if (!$estado['procesado']) {
+                        $primer_dia_sin_procesar = $dia_esperado;
                         break;
                     }
                 }
 
-                if ($primer_dia_pendiente === null || $dia !== $primer_dia_pendiente) {
+                $es_dia_marcado_pendiente = ($pagos_por_dia[$dia]['marcado_pendiente'] ?? false);
+
+                if ($primer_dia_sin_procesar !== null && $dia !== $primer_dia_sin_procesar && !$es_dia_marcado_pendiente) {
                     header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=orden_pago_invalido');
                     exit;
                 }
@@ -126,21 +135,27 @@ switch ($action) {
 
                 if (isset($tarjeta['pagos'])) {
                     foreach ($tarjeta['pagos'] as $p) {
-                        $pagos_por_dia[intval($p['dia'])] = floatval($p['pago'] ?? 0);
+                        $dia_pago = intval($p['dia']);
+                        $monto_registrado = floatval($p['pago'] ?? 0);
+                        $marcado_pendiente = ($monto_registrado <= 0 && !empty($p['fecha_registro']));
+                        $pagos_por_dia[$dia_pago] = [
+                            'monto' => $monto_registrado,
+                            'procesado' => ($monto_registrado > 0 || $marcado_pendiente)
+                        ];
                     }
                 }
 
-                $primer_dia_pendiente = null;
+                $primer_dia_sin_procesar = null;
                 for ($periodo = 1; $periodo <= $total_periodos; $periodo++) {
                     $dia_esperado = $is_semanal ? ($periodo * 7) : $periodo;
-                    $monto_registrado = floatval($pagos_por_dia[$dia_esperado] ?? 0);
-                    if ($monto_registrado <= 0) {
-                        $primer_dia_pendiente = $dia_esperado;
+                    $estado = $pagos_por_dia[$dia_esperado] ?? ['procesado' => false];
+                    if (!$estado['procesado']) {
+                        $primer_dia_sin_procesar = $dia_esperado;
                         break;
                     }
                 }
 
-                if ($primer_dia_pendiente === null || $dia !== $primer_dia_pendiente) {
+                if ($primer_dia_sin_procesar !== null && $dia !== $primer_dia_sin_procesar) {
                     header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=orden_pago_invalido');
                     exit;
                 }

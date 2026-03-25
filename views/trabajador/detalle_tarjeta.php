@@ -195,26 +195,23 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             if (!$pago_registrado && !$es_pendiente_marcado && !$primer_pendiente_habilitado) {
                                 $puede_registrar = true;
                                 $primer_pendiente_habilitado = true;
-                            } elseif ($es_pendiente_marcado && !$primer_pendiente_habilitado) {
-                                $puede_registrar = true;
-                                $primer_pendiente_habilitado = true;
                             }
                             
                             // El saldo en BD representa lo que se debe ANTES de pagar ese día
-                            // El saldo pendiente a mostrar es lo que queda DESPUÉS de pagar
                             $saldo_antes = $pago_existente ? floatval($pago_existente['saldo']) : max(0, $total - ($i - 1) * $pago_unitario);
-                            $saldo_despues = max(0, $saldo_antes - ($pago_registrado ? $monto_pago : $pago_unitario));
+                            $monto_esperado_dia = min($pago_unitario, $saldo_antes);
+                            $faltante_dia = max(0, $monto_esperado_dia - $monto_pago);
+                            $es_pago_parcial = ($pago_registrado && $faltante_dia > 0.009);
+                            $saldo_despues = max(0, $saldo_antes - $monto_pago);
                         ?>
                         <tr class="<?php echo $pago_registrado ? 'row-paid' : ''; ?>">
                             <!-- Columna 1: Número de Día -->
                             <td><?php echo htmlspecialchars($etiqueta_periodo); ?></td>
                             <!-- Columna 2: Fecha -->
                             <td>
+                                <strong style="color: #28a745;"><?php echo htmlspecialchars($fecha_pago); ?></strong>
                                 <?php if ($pago_registrado && $fecha_cobro_real): ?>
-                                    <strong style="color: #28a745;"><?php echo $fecha_cobro_real; ?></strong>
-                                    <br><small class="text-muted">Programado: <?php echo $fecha_pago; ?></small>
-                                <?php else: ?>
-                                    <?php echo htmlspecialchars($fecha_pago); ?>
+                                    <br><small class="text-muted">Cobrado: <?php echo htmlspecialchars($fecha_cobro_real); ?></small>
                                 <?php endif; ?>
                             </td>
                             <!-- Columna 3: Pago Realizado -->
@@ -234,7 +231,11 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             <!-- Columna 6: Acción -->
                             <td style="white-space: nowrap;">
                                 <?php if ($pago_registrado): ?>
-                                    <span class="text-muted">✓ Pagado</span>
+                                    <?php if ($es_pago_parcial): ?>
+                                        <span class="badge" style="background-color: #17a2b8; color: #fff;">△ Parcial</span>
+                                    <?php else: ?>
+                                        <span class="text-muted">✓ Pagado</span>
+                                    <?php endif; ?>
                                 <?php elseif ($es_pendiente_marcado): ?>
                                     <div style="margin-bottom: 8px;">
                                         <span class="badge" style="background-color: #ffc107; color: #000;">⭕ Pendiente</span>
