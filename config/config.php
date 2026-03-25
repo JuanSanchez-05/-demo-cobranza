@@ -1119,14 +1119,18 @@ function crearPagosProgramados($tarjeta_id, $data) {
         }
         
     } else { // nueva
-        // NUEVA: crear registros DIARIOS, pago cada día (inicia al día siguiente)
+        // NUEVA: crear registros de LUNES a SÁBADO (domingo no cuenta)
         $pago_diario = floatval($data['pago'] ?? 0);
         $dias = intval($data['dias_pagar'] ?? 0);
         $saldo_pendiente = $total;
+        $dias_calendario = 0;
         
         for ($dia = 1; $dia <= $dias; $dia++) {
-            // Día 1 = fecha_base + 1 día (siguiente día)
-            $fecha_pago = date('Y-m-d', strtotime($fecha_base . ' +' . $dia . ' days'));
+            do {
+                $dias_calendario++;
+                $fecha_pago = date('Y-m-d', strtotime($fecha_base . ' +' . $dias_calendario . ' days'));
+                $dia_semana = date('w', strtotime($fecha_pago)); // 0=Domingo, 1=Lunes ... 6=Sábado
+            } while ($dia_semana == 0);
             
             // Guardar el saldo ANTES de realizar el pago de este día
             $stmt = $db->prepare("
