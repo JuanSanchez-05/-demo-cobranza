@@ -66,6 +66,7 @@ switch ($action) {
             $monto = floatval($_POST['monto'] ?? 0);
             
             // Validar que el monto no exceda el saldo pendiente
+            $pdo = getDB();
             $stmt_validar = $pdo->prepare("SELECT saldo FROM pagos WHERE tarjeta_id = ? AND dia = ?");
             $stmt_validar->execute([$id, $dia]);
             $pago_validar = $stmt_validar->fetch();
