@@ -27,6 +27,8 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
             <div class="alert alert-success">✓ Pago registrado exitosamente</div>
         <?php elseif ($_GET['mensaje'] === 'pendiente_marcado'): ?>
             <div class="alert alert-info">⭕ Visita registrada como pendiente. Se completará cuando se realice el pago.</div>
+        <?php elseif ($_GET['mensaje'] === 'dia_extra_agregado'): ?>
+            <div class="alert alert-success">✓ Se agregó un día extra para seguir cobrando el saldo pendiente.</div>
         <?php elseif ($_GET['mensaje'] === 'error_pago'): ?>
             <div class="alert alert-warning">⚠ Este pago ya fue registrado anteriormente</div>
         <?php elseif ($_GET['mensaje'] === 'error_dia'): ?>
@@ -44,7 +46,9 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
         <?php elseif ($_GET['error'] === 'orden_pago_invalido'): ?>
             <div class="alert alert-warning">⚠ Debes registrar los pagos en orden. Primero completa el siguiente período pendiente.</div>
         <?php elseif ($_GET['error'] === 'monto_excede_saldo'): ?>
-            <div class="alert alert-danger">✗ El monto ingresado excede el saldo pendiente. Verifica el monto máximo permitido.</div>
+            <div class="alert alert-danger">✗ El monto ingresado excede lo permitido para este día. Solo puedes cobrar el monto del día más atrasos anteriores, sin pasar la deuda total.</div>
+        <?php elseif ($_GET['error'] === 'error_dia_extra'): ?>
+            <div class="alert alert-danger">✗ No fue posible agregar un día extra. Verifica que aún exista saldo pendiente.</div>
         <?php endif; ?>
     <?php endif; ?>
 
@@ -159,7 +163,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                         <!-- DEBUG: Tabla con 5 columnas - Version 2.2 -->
                         <?php 
                         $is_semanal = ($tarjeta['tipo'] === 'antigua_semanal');
-                        $semanas = $tarjeta['semanas_pagar'] ?: ($tarjeta['dias_pagar'] ?: 12);
+                        $semanas = obtenerTotalPeriodosTarjeta($tarjeta);
                         
                         // Calcular el pago unitario según el tipo de tarjeta
                         if ($tarjeta['tipo'] === 'antigua_semanal') {
@@ -171,6 +175,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                         }
                         
                         $primer_pendiente_habilitado = false;
+                        $hay_dia_disponible = false;
                         for ($i = 1; $i <= $semanas; $i++): 
                             $dia_buscar = $is_semanal ? ($i * 7) : $i;
                             $etiqueta_periodo = $is_semanal ? "Semana $i" : "Día $i";
@@ -200,9 +205,19 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             // El saldo en BD representa lo que se debe ANTES de pagar ese día
                             $saldo_antes = $pago_existente ? floatval($pago_existente['saldo']) : max(0, $total - ($i - 1) * $pago_unitario);
                             $monto_esperado_dia = min($pago_unitario, $saldo_antes);
+                            $monto_maximo_dia = obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia_buscar, $saldo_antes);
                             $faltante_dia = max(0, $monto_esperado_dia - $monto_pago);
                             $es_pago_parcial = ($pago_registrado && $faltante_dia > 0.009);
-                            $saldo_despues = max(0, $saldo_antes - $monto_pago);
+                            if ($pago_registrado) {
+                                $saldo_despues = floatval($pago_existente['saldo']);
+                            } elseif ($es_pendiente_marcado) {
+                                $saldo_despues = $saldo_antes;
+                            } else {
+                                $saldo_despues = max(0, $saldo_antes - $monto_esperado_dia);
+                            }
+                            if ($puede_registrar || $es_pendiente_marcado) {
+                                $hay_dia_disponible = true;
+                            }
                         ?>
                         <tr class="<?php echo $pago_registrado ? 'row-paid' : ''; ?>">
                             <!-- Columna 1: Número de Día -->
@@ -248,14 +263,14 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                                 name="monto" 
                                                 step="0.01" 
                                                 min="0.01" 
-                                                max="<?php echo $saldo_antes; ?>" 
-                                                value="<?php echo min($pago_unitario, $saldo_antes); ?>" 
+                                                max="<?php echo $monto_maximo_dia; ?>" 
+                                                value="<?php echo min($monto_maximo_dia, max($monto_esperado_dia, 0.01)); ?>" 
                                                 placeholder="Monto" 
                                                 required
                                                 style="width: 90px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;"
-                                                title="Máximo: $<?php echo number_format($saldo_antes, 2); ?>"
+                                                title="Máximo: $<?php echo number_format($monto_maximo_dia, 2); ?>"
                                             >
-                                            <small style="color: #666; font-size: 10px;">Max: $<?php echo number_format($saldo_antes, 2); ?></small>
+                                            <small style="color: #666; font-size: 10px;">Max: $<?php echo number_format($monto_maximo_dia, 2); ?></small>
                                         </div>
                                         <button type="submit" name="registrar_pago" class="btn btn-sm btn-info">
                                             💵 Cobrar
@@ -270,14 +285,14 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                                 name="monto" 
                                                 step="0.01" 
                                                 min="0.01" 
-                                                max="<?php echo $saldo_antes; ?>" 
-                                                value="<?php echo min($pago_unitario, $saldo_antes); ?>" 
+                                                max="<?php echo $monto_maximo_dia; ?>" 
+                                                value="<?php echo min($monto_maximo_dia, max($monto_esperado_dia, 0.01)); ?>" 
                                                 placeholder="Monto" 
                                                 required
                                                 style="width: 90px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;"
-                                                title="Máximo: $<?php echo number_format($saldo_antes, 2); ?>"
+                                                title="Máximo: $<?php echo number_format($monto_maximo_dia, 2); ?>"
                                             >
-                                            <small style="color: #666; font-size: 10px;">Max: $<?php echo number_format($saldo_antes, 2); ?></small>
+                                            <small style="color: #666; font-size: 10px;">Max: $<?php echo number_format($monto_maximo_dia, 2); ?></small>
                                         </div>
                                         <button type="submit" name="registrar_pago" class="btn btn-sm btn-success">
                                             💵 Ingresar Monto
@@ -300,6 +315,16 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                     </tbody>
                 </table>
             </div>
+
+            <?php if (!$hay_dia_disponible && $pendiente > 0.009): ?>
+                <div style="margin-top: 16px; display: flex; justify-content: flex-end;">
+                    <form method="POST">
+                        <button type="submit" name="agregar_dia_extra" class="btn btn-primary">
+                            ➕ Agregar un día más
+                        </button>
+                    </form>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 </div>

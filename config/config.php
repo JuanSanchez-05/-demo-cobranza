@@ -1207,6 +1207,175 @@ function togglearEstadoUsuario($id) {
     return $stmt->execute([$id]);
 }
 
+function obtenerMontoBaseTarjeta($tarjeta) {
+    $tipo = $tarjeta['tipo'] ?? 'nueva';
+
+    if ($tipo === 'antigua_semanal') {
+        return floatval($tarjeta['pago_semanal'] ?? 0);
+    }
+
+    if ($tipo === 'antigua_diaria') {
+        return floatval($tarjeta['cuota_diaria'] ?? 0);
+    }
+
+    return floatval($tarjeta['pago'] ?? 0);
+}
+
+function obtenerPeriodoDesdeDiaTarjeta($tarjeta, $dia) {
+    if (($tarjeta['tipo'] ?? '') === 'antigua_semanal') {
+        return max(1, (int) ceil(intval($dia) / 7));
+    }
+
+    return max(1, intval($dia));
+}
+
+function obtenerTotalPeriodosTarjeta($tarjeta) {
+    $base = intval($tarjeta['semanas_pagar'] ?: ($tarjeta['dias_pagar'] ?: 0));
+    $maxDia = 0;
+
+    if (!empty($tarjeta['pagos'])) {
+        foreach ($tarjeta['pagos'] as $pago) {
+            $maxDia = max($maxDia, intval($pago['dia'] ?? 0));
+        }
+    }
+
+    if (($tarjeta['tipo'] ?? '') === 'antigua_semanal') {
+        return max($base, $maxDia > 0 ? (int) ceil($maxDia / 7) : 0);
+    }
+
+    return max($base, $maxDia);
+}
+
+function obtenerMontoProgramadoAcumuladoTarjeta($tarjeta, $periodos) {
+    $totalPrestamo = floatval($tarjeta['total_prestamo'] ?? ($tarjeta['valor'] ?? 0));
+    $montoBase = obtenerMontoBaseTarjeta($tarjeta);
+
+    if ($periodos <= 0 || $montoBase <= 0) {
+        return 0;
+    }
+
+    return min($totalPrestamo, $montoBase * $periodos);
+}
+
+function obtenerMontoPagadoAcumuladoHastaDiaTarjeta($tarjeta, $diaLimite) {
+    $totalPagado = 0;
+
+    if (empty($tarjeta['pagos'])) {
+        return 0;
+    }
+
+    foreach ($tarjeta['pagos'] as $pago) {
+        if (intval($pago['dia'] ?? 0) < intval($diaLimite)) {
+            $totalPagado += floatval($pago['pago'] ?? 0);
+        }
+    }
+
+    return $totalPagado;
+}
+
+function obtenerPendienteArrastradoHastaDiaTarjeta($tarjeta, $dia) {
+    $periodoActual = obtenerPeriodoDesdeDiaTarjeta($tarjeta, $dia);
+    $programadoPrevio = obtenerMontoProgramadoAcumuladoTarjeta($tarjeta, $periodoActual - 1);
+    $pagadoPrevio = obtenerMontoPagadoAcumuladoHastaDiaTarjeta($tarjeta, $dia);
+
+    return max(0, $programadoPrevio - $pagadoPrevio);
+}
+
+function obtenerMontoProgramadoPeriodoTarjeta($tarjeta, $dia, $saldoAntes = null) {
+    $montoBase = obtenerMontoBaseTarjeta($tarjeta);
+    $periodoActual = obtenerPeriodoDesdeDiaTarjeta($tarjeta, $dia);
+    $programadoPrevio = obtenerMontoProgramadoAcumuladoTarjeta($tarjeta, $periodoActual - 1);
+    $totalPrestamo = floatval($tarjeta['total_prestamo'] ?? ($tarjeta['valor'] ?? 0));
+    $restantePlan = max(0, $totalPrestamo - $programadoPrevio);
+    $programadoDia = $montoBase > 0 ? min($montoBase, $restantePlan) : $restantePlan;
+
+    if ($saldoAntes !== null) {
+        $programadoDia = min($programadoDia, max(0, floatval($saldoAntes)));
+    }
+
+    return max(0, $programadoDia);
+}
+
+function obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia, $saldoAntes) {
+    $pendienteArrastrado = obtenerPendienteArrastradoHastaDiaTarjeta($tarjeta, $dia);
+    $montoDia = obtenerMontoProgramadoPeriodoTarjeta($tarjeta, $dia, $saldoAntes);
+    $maximo = $montoDia + $pendienteArrastrado;
+
+    return min(max(0, floatval($saldoAntes)), max(0, $maximo));
+}
+
+function calcularSiguienteFechaPagoSegunTipo($tipo, $fechaBase) {
+    $timestamp = strtotime($fechaBase);
+    if ($timestamp === false) {
+        $timestamp = time();
+    }
+
+    if ($tipo === 'antigua_semanal') {
+        return date('Y-m-d', strtotime('+7 days', $timestamp));
+    }
+
+    do {
+        $timestamp = strtotime('+1 day', $timestamp);
+        $diaSemana = date('w', $timestamp);
+    } while ($tipo === 'nueva' && $diaSemana == 0);
+
+    return date('Y-m-d', $timestamp);
+}
+
+function agregarDiaExtraPago($tarjeta_id) {
+    $db = getDB();
+    $tarjeta = obtenerTarjetaPorId($tarjeta_id);
+
+    if (!$tarjeta) {
+        return false;
+    }
+
+    $stmt = $db->prepare("SELECT * FROM pagos WHERE tarjeta_id = ? ORDER BY dia DESC LIMIT 1");
+    $stmt->execute([$tarjeta_id]);
+    $ultimoPago = $stmt->fetch();
+
+    if (!$ultimoPago) {
+        return false;
+    }
+
+    $saldoRestante = max(0, floatval($ultimoPago['saldo'] ?? 0) - floatval($ultimoPago['pago'] ?? 0));
+    if ($saldoRestante <= 0.009) {
+        return false;
+    }
+
+    $siguienteDia = ($tarjeta['tipo'] ?? '') === 'antigua_semanal'
+        ? intval($ultimoPago['dia']) + 7
+        : intval($ultimoPago['dia']) + 1;
+
+    $stmt = $db->prepare("SELECT id FROM pagos WHERE tarjeta_id = ? AND dia = ? LIMIT 1");
+    $stmt->execute([$tarjeta_id, $siguienteDia]);
+    if ($stmt->fetch()) {
+        return false;
+    }
+
+    $siguienteFecha = calcularSiguienteFechaPagoSegunTipo($tarjeta['tipo'] ?? 'nueva', $ultimoPago['fecha'] ?? date('Y-m-d'));
+
+    $stmt = $db->prepare("
+        INSERT INTO pagos (tarjeta_id, dia, fecha, pago, saldo, observacion)
+        VALUES (?, ?, ?, 0, ?, 'Día extra agregado por saldo pendiente')
+    ");
+    $resultado = $stmt->execute([$tarjeta_id, $siguienteDia, $siguienteFecha, $saldoRestante]);
+
+    if (!$resultado) {
+        return false;
+    }
+
+    if (($tarjeta['tipo'] ?? '') === 'antigua_semanal') {
+        $db->prepare("UPDATE tarjetas SET semanas_pagar = COALESCE(semanas_pagar, 0) + 1 WHERE id = ?")
+            ->execute([$tarjeta_id]);
+    } else {
+        $db->prepare("UPDATE tarjetas SET dias_pagar = COALESCE(dias_pagar, 0) + 1 WHERE id = ?")
+            ->execute([$tarjeta_id]);
+    }
+
+    return true;
+}
+
 function obtenerMontoProgramadoDia($tarjeta_id, $saldo_antes = 0) {
     $db = getDB();
     $stmt = $db->prepare("SELECT tipo, pago_semanal, cuota_diaria, pago FROM tarjetas WHERE id = ?");
@@ -1314,8 +1483,8 @@ function recalcularSaldosPosteriores($tarjeta_id, $dia_desde) {
     
     if (!$pago_base) return;
     
-    // El saldo para el siguiente día es: saldo_actual - pago_realizado
-    $saldo_acumulado = floatval($pago_base['saldo']) - floatval($pago_base['pago']);
+    // El saldo guardado del día base ya representa lo que quedó después de ese pago
+    $saldo_acumulado = floatval($pago_base['saldo']);
     
     // Actualizar cada día posterior
     foreach ($pagos_posteriores as $pago_post) {

@@ -71,15 +71,16 @@ switch ($action) {
             $stmt_validar->execute([$id, $dia]);
             $pago_validar = $stmt_validar->fetch();
             $saldo_pendiente = $pago_validar ? floatval($pago_validar['saldo']) : 0;
+            $monto_maximo = obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia, $saldo_pendiente);
             
-            if ($monto > $saldo_pendiente) {
+            if ($monto > $monto_maximo || $monto > $saldo_pendiente) {
                 header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=monto_excede_saldo');
                 exit;
             }
             
             if ($dia > 0 && $monto > 0) {
                 $is_semanal = ($tarjeta['tipo'] === 'antigua_semanal');
-                $total_periodos = $tarjeta['semanas_pagar'] ?: ($tarjeta['dias_pagar'] ?: 12);
+                $total_periodos = obtenerTotalPeriodosTarjeta($tarjeta);
                 $pagos_por_dia = [];
 
                 if (isset($tarjeta['pagos'])) {
@@ -130,7 +131,7 @@ switch ($action) {
 
             if ($dia > 0) {
                 $is_semanal = ($tarjeta['tipo'] === 'antigua_semanal');
-                $total_periodos = $tarjeta['semanas_pagar'] ?: ($tarjeta['dias_pagar'] ?: 12);
+                $total_periodos = obtenerTotalPeriodosTarjeta($tarjeta);
                 $pagos_por_dia = [];
 
                 if (isset($tarjeta['pagos'])) {
@@ -168,6 +169,16 @@ switch ($action) {
                 }
             } else {
                 header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=datos_invalidos');
+            }
+            exit;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['agregar_dia_extra'])) {
+            $resultado = agregarDiaExtraPago($id);
+            if ($resultado) {
+                header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&mensaje=dia_extra_agregado');
+            } else {
+                header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=error_dia_extra');
             }
             exit;
         }
