@@ -1442,6 +1442,16 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     $tarjeta = obtenerTarjetaPorId($tarjeta_id);
     if (!$tarjeta) return false;
 
+    // Verificar si el día ya está completamente pagado
+    $saldo_actual = floatval($pago['saldo']);
+    $pago_actual = floatval($pago['pago']);
+    $monto_programado_dia = obtenerMontoProgramadoDia($tarjeta_id, $saldo_actual);
+    
+    // Si ya tiene el pago completo del día, no permitir más entradas
+    if ($pago_actual >= $monto_programado_dia - 0.009 && $pago['fecha_registro'] !== null) {
+        return false; // Día ya está completamente pagado
+    }
+
     $hoy = date('Y-m-d');
     $es_pagado_con_retraso = (
         floatval($pago['pago'] ?? 0) <= 0 &&
@@ -1453,7 +1463,6 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     // Calcular el saldo DESPUÉS del pago
     $saldo_antes = floatval($pago['saldo']);
     $saldo_despues = max(0, $saldo_antes - $monto);
-    $monto_programado_dia = obtenerMontoProgramadoDia($tarjeta_id, $saldo_antes);
     $pago_total_dia = floatval($pago['pago']) + $monto;
     $faltante_dia = max(0, $monto_programado_dia - $pago_total_dia);
 
@@ -1477,9 +1486,9 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     
     if (!$result) return false;
     
-    // Si se completa un atraso (había pendiente anterior y ahora se cubre), marcar días anteriores como pagados
+    // Si se completa un atraso, distribuir pago y marcar días anteriores como pagados
     if ($es_pagado_con_retraso && $faltante_dia <= 0.009) {
-        marcarDiasAnterioresComoPagados($tarjeta_id, $dia);
+        distribuirPagoEnAtrasos($tarjeta_id, $dia, $monto);
     }
     
     // Recalcular saldos de días posteriores
@@ -1491,12 +1500,12 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     return $result;
 }
 
-function marcarDiasAnterioresComoPagados($tarjeta_id, $dia_actual) {
+function distribuirPagoEnAtrasos($tarjeta_id, $dia_actual, $monto_pagado) {
     $db = getDB();
     $tarjeta = obtenerTarjetaPorId($tarjeta_id);
     if (!$tarjeta) return;
     
-    // Obtener todos los días anteriores con estado pendiente
+    // Obtener todos los días anteriores
     $stmt = $db->prepare("
         SELECT dia, saldo, pago FROM pagos 
         WHERE tarjeta_id = ? AND dia < ? 
@@ -1507,26 +1516,37 @@ function marcarDiasAnterioresComoPagados($tarjeta_id, $dia_actual) {
     
     if (empty($dias_anteriores)) return;
     
-    // Marcar cada día anterior como completamente pagado
+    $restante_distribuir = $monto_pagado;
+    
+    // Distribuir el pago en orden de días anteriores
     foreach ($dias_anteriores as $dia_ant) {
+        if ($restante_distribuir <= 0.009) break;
+        
         $dia_num = intval($dia_ant['dia']);
         $saldo_ant = floatval($dia_ant['saldo']);
+        $pago_ant = floatval($dia_ant['pago']);
         
-        // Si el día anterior aún tiene saldo (estaba pendiente), marcarlo como pagado
-        if ($saldo_ant > 0.009) {
-            $monto_base = obtenerMontoProgramadoDia($tarjeta_id, $saldo_ant);
-            $fecha_registro = date('Y-m-d H:i:s');
+        // Obtener monto programado para ese día
+        $monto_base = obtenerMontoProgramadoDia($tarjeta_id, $saldo_ant);
+        $faltante_dia_ant = max(0, $monto_base - $pago_ant);
+        
+        // Si hay faltante en este día, cubrirlo con el pago distribuible
+        if ($faltante_dia_ant > 0.009) {
+            $a_pagar = min($faltante_dia_ant, $restante_distribuir);
             
             $stmt = $db->prepare("
                 UPDATE pagos 
-                SET pago = ?, saldo = 0, observacion = ?
+                SET pago = pago + ?, saldo = 0, observacion = ?
                 WHERE tarjeta_id = ? AND dia = ?
             ");
-            $observacion = 'Pagado cuando se completó el atraso del día ' . intval($dia_actual);
-            $stmt->execute([$monto_base, $observacion, $tarjeta_id, $dia_num]);
+            $observacion = 'Completado cuando se pagó el día ' . intval($dia_actual);
+            $stmt->execute([$a_pagar, $observacion, $tarjeta_id, $dia_num]);
+            
+            $restante_distribuir -= $a_pagar;
         }
     }
 }
+
 
 function recalcularSaldosPosteriores($tarjeta_id, $dia_desde) {
     $db = getDB();
