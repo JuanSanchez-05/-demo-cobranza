@@ -192,10 +192,11 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             $monto_pago = $pago_existente ? floatval($pago_existente['pago']) : 0;
                             $nota_pago = $pago_existente ? trim((string)($pago_existente['observacion'] ?? '')) : '';
                             $pago_registrado = ($pago_existente && $monto_pago > 0);
-                            $es_pendiente_marcado = ($pago_existente && $monto_pago == 0 && !empty($pago_existente['fecha_registro']));
+                            $no_pagado_registrado = ($pago_existente && $monto_pago == 0 && !empty($pago_existente['fecha_registro']));
+                            $dia_procesado = ($pago_registrado || $no_pagado_registrado);
 
                             $puede_registrar = false;
-                            if (!$pago_registrado && !$primer_pendiente_habilitado) {
+                            if (!$dia_procesado && !$primer_pendiente_habilitado) {
                                 $puede_registrar = true;
                                 $primer_pendiente_habilitado = true;
                             }
@@ -206,7 +207,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             $monto_maximo_dia = obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia_buscar, $saldo_antes);
                             $faltante_dia = max(0, $monto_esperado_dia - $monto_pago);
                             $es_pago_parcial = ($pago_registrado && $faltante_dia > 0.009);
-                            if ($pago_registrado) {
+                            if ($pago_registrado || $no_pagado_registrado) {
                                 $saldo_despues = floatval($pago_existente['saldo']);
                             } else {
                                 $saldo_despues = max(0, $saldo_antes - $monto_esperado_dia);
@@ -221,8 +222,8 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             <!-- Columna 2: Fecha -->
                             <td>
                                 <strong style="color: #28a745;"><?php echo htmlspecialchars($fecha_pago); ?></strong>
-                                <?php if ($pago_registrado && $fecha_cobro_real): ?>
-                                    <br><small class="text-muted">Cobrado: <?php echo htmlspecialchars($fecha_cobro_real); ?></small>
+                                <?php if (($pago_registrado || $no_pagado_registrado) && $fecha_cobro_real): ?>
+                                    <br><small class="text-muted">Registrado: <?php echo htmlspecialchars($fecha_cobro_real); ?></small>
                                 <?php endif; ?>
                             </td>
                             <!-- Columna 3: Pago Realizado -->
@@ -247,6 +248,8 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                     <?php else: ?>
                                         <span class="text-muted">✓ Pagado</span>
                                     <?php endif; ?>
+                                <?php elseif ($no_pagado_registrado): ?>
+                                    <span class="badge" style="background-color: #dc3545; color: #fff;">✗ No pagado</span>
                                 <?php elseif ($puede_registrar): ?>
                                     <form method="POST" style="display: flex; gap: 5px; align-items: center;">
                                         <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">

@@ -87,9 +87,10 @@ switch ($action) {
                     foreach ($tarjeta['pagos'] as $p) {
                         $dia_pago = intval($p['dia']);
                         $monto_registrado = floatval($p['pago'] ?? 0);
+                        $no_pagado_registrado = ($monto_registrado <= 0 && !empty($p['fecha_registro']));
                         $pagos_por_dia[$dia_pago] = [
                             'monto' => $monto_registrado,
-                            'procesado' => ($monto_registrado > 0)
+                            'procesado' => ($monto_registrado > 0 || $no_pagado_registrado)
                         ];
                     }
                 }
