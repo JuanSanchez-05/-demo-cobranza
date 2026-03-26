@@ -1304,7 +1304,8 @@ function obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia, $saldoAntes) {
     // Obtener monto programado para el día actual
     $montoDia = obtenerMontoProgramadoPeriodoTarjeta($tarjeta, $dia, $saldoAntes);
     
-    // Obtener suma de faltantes reales de días previos (programado - pagado)
+    // Obtener suma de faltantes reales de días previos ya procesados (programado - pagado)
+    // En semanal solo cuentan días cobrables (múltiplos de 7)
     $hoy = date('Y-m-d');
     $stmt = $db->prepare("
         SELECT COALESCE(SUM(
@@ -1319,7 +1320,11 @@ function obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia, $saldoAntes) {
         ), 0) as atraso_acumulado
         FROM pagos p
         JOIN tarjetas t ON p.tarjeta_id = t.id
-        WHERE p.tarjeta_id = ? AND p.dia < ? AND p.fecha < ?
+                WHERE p.tarjeta_id = ?
+                    AND p.dia < ?
+                    AND p.fecha < ?
+                    AND p.fecha_registro IS NOT NULL
+                    AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
     ");
     $stmt->execute([$tarjeta_id, $dia, $hoy]);
     $atraso_acumulado = floatval($stmt->fetchColumn());
@@ -1521,7 +1526,7 @@ function distribuirPagoEnAtrasos($tarjeta_id, $dia_actual, $monto_pagado, $cobra
     
     // Obtener todos los días anteriores
     $stmt = $db->prepare("
-        SELECT dia, saldo, pago, observacion FROM pagos 
+        SELECT dia, saldo, pago, observacion, fecha_registro FROM pagos 
         WHERE tarjeta_id = ? AND dia < ? 
         ORDER BY dia ASC
     ");
@@ -1537,6 +1542,16 @@ function distribuirPagoEnAtrasos($tarjeta_id, $dia_actual, $monto_pagado, $cobra
         if ($restante_distribuir <= 0.009) break;
         
         $dia_num = intval($dia_ant['dia']);
+        $es_dia_cobrable_semanal = (($tarjeta['tipo'] ?? '') !== 'antigua_semanal') || (($dia_num % 7) === 0);
+        if (!$es_dia_cobrable_semanal) {
+            continue;
+        }
+
+        $dia_procesado = !empty($dia_ant['fecha_registro']) || floatval($dia_ant['pago'] ?? 0) > 0;
+        if (!$dia_procesado) {
+            continue;
+        }
+
         $saldo_ant = floatval($dia_ant['saldo']);
         $pago_ant = floatval($dia_ant['pago']);
         
