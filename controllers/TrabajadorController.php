@@ -64,16 +64,6 @@ switch ($action) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registrar_pago'])) {
             $dia = intval($_POST['dia'] ?? 0);
             $monto = floatval($_POST['monto'] ?? 0);
-
-            if ($dia > 0 && $monto == 0) {
-                $resultado = registrarPagoPendiente($id, $dia, $trabajador_id);
-                if ($resultado) {
-                    header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&mensaje=pago_registrado');
-                } else {
-                    header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=error_pendiente');
-                }
-                exit;
-            }
             
             // Validar que el monto no exceda el saldo pendiente
             $pdo = getDB();
@@ -97,11 +87,9 @@ switch ($action) {
                     foreach ($tarjeta['pagos'] as $p) {
                         $dia_pago = intval($p['dia']);
                         $monto_registrado = floatval($p['pago'] ?? 0);
-                        $marcado_pendiente = ($monto_registrado <= 0 && !empty($p['fecha_registro']));
                         $pagos_por_dia[$dia_pago] = [
                             'monto' => $monto_registrado,
-                            'procesado' => ($monto_registrado > 0 || $marcado_pendiente),
-                            'marcado_pendiente' => $marcado_pendiente
+                            'procesado' => ($monto_registrado > 0)
                         ];
                     }
                 }
@@ -109,16 +97,14 @@ switch ($action) {
                 $primer_dia_sin_procesar = null;
                 for ($periodo = 1; $periodo <= $total_periodos; $periodo++) {
                     $dia_esperado = $is_semanal ? ($periodo * 7) : $periodo;
-                    $estado = $pagos_por_dia[$dia_esperado] ?? ['procesado' => false, 'marcado_pendiente' => false];
+                    $estado = $pagos_por_dia[$dia_esperado] ?? ['procesado' => false];
                     if (!$estado['procesado']) {
                         $primer_dia_sin_procesar = $dia_esperado;
                         break;
                     }
                 }
 
-                $es_dia_marcado_pendiente = ($pagos_por_dia[$dia]['marcado_pendiente'] ?? false);
-
-                if ($primer_dia_sin_procesar !== null && $dia !== $primer_dia_sin_procesar && !$es_dia_marcado_pendiente) {
+                if ($primer_dia_sin_procesar !== null && $dia !== $primer_dia_sin_procesar) {
                     header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=orden_pago_invalido');
                     exit;
                 }
@@ -156,40 +142,26 @@ switch ($action) {
         if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pagos = $_POST['pagos'] ?? [];
             $exitosos = 0;
-            $pendientes_marcados = 0;
             $errores = 0;
             
             foreach ($pagos as $pago_data) {
                 $tarjeta_id = intval($pago_data['tarjeta_id'] ?? 0);
                 $dia = intval($pago_data['dia'] ?? 0);
                 $monto = floatval($pago_data['monto'] ?? 0);
-                $estado = $pago_data['estado'] ?? 'cobrado';
                 
                 if ($tarjeta_id > 0 && $dia > 0) {
-                    if ($estado === 'pendiente') {
-                        $resultado = registrarPagoPendiente($tarjeta_id, $dia, $trabajador_id);
+                    if ($monto >= 0) {
+                        $resultado = registrarPago($tarjeta_id, $dia, $monto, $trabajador_id);
                         if ($resultado) {
-                            $pendientes_marcados++;
+                            $exitosos++;
                         } else {
                             $errores++;
-                        }
-                    } else {
-                        if ($monto > 0) {
-                            $resultado = registrarPago($tarjeta_id, $dia, $monto, $trabajador_id);
-                            if ($resultado) {
-                                $exitosos++;
-                            } else {
-                                $errores++;
-                            }
                         }
                     }
                 }
             }
             
             $mensaje = "✅ {$exitosos} pagos registrados";
-            if ($pendientes_marcados > 0) {
-                $mensaje .= ", ⭕ {$pendientes_marcados} marcados como pendientes";
-            }
             if ($errores > 0) {
                 $mensaje .= ", ❌ {$errores} errores";
             }

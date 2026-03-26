@@ -43,9 +43,7 @@ include __DIR__ . '/../layouts/header.php';
                                 <th>Tipo</th>
                                 <th>Monto Esperado</th>
                                 <th>Cobrado</th>
-                                <th>Estado de Visita</th>
                                 <th>Monto a Registrar</th>
-                                <th>Acción Rápida</th>
                                 <th>Registrar</th>
                             </tr>
                         </thead>
@@ -89,35 +87,15 @@ include __DIR__ . '/../layouts/header.php';
                                     $<?php echo number_format($ya_cobrado, 2); ?>
                                 </td>
                                 <td>
-                                    <select name="pagos[<?php echo $index; ?>][estado]"
-                                            class="form-control form-control-sm estado-cobro"
-                                            data-index="<?php echo $index; ?>"
-                                            <?php echo $ya_cobrado > 0 ? 'disabled' : ''; ?>>
-                                        <option value="cobrado" <?php echo $estado_visita === 'cobrado' ? 'selected' : ''; ?>>✅ Cobrado</option>
-                                        <option value="cobrado" <?php echo $estado_visita === 'pagado_retraso' ? 'selected' : ''; ?>>✅ Cobrado</option>
-                                        <option value="pendiente" <?php echo $estado_visita === 'pendiente' ? 'selected' : ''; ?>>⭕ Pendiente (no pagó / no estaba)</option>
-                                    </select>
-                                </td>
-                                <td>
                                     <input type="number" 
                                            name="pagos[<?php echo $index; ?>][monto]" 
                                            step="0.01" 
                                            min="0" 
                                            max="<?php echo $monto_esperado; ?>"
-                                         value="<?php echo $ya_cobrado > 0 ? '' : ($estado_visita === 'pendiente' ? '0' : $monto_esperado); ?>"
-                                         <?php echo $estado_visita === 'pendiente' ? 'readonly' : ''; ?>
+                                           value="<?php echo $ya_cobrado > 0 ? '' : $monto_esperado; ?>"
                                            class="form-control form-control-sm">
                                     <input type="hidden" name="pagos[<?php echo $index; ?>][tarjeta_id]" value="<?php echo $cobro['id']; ?>">
                                     <input type="hidden" name="pagos[<?php echo $index; ?>][dia]" value="<?php echo $cobro['dia']; ?>">
-                                </td>
-                                <td>
-                                    <?php if ($ya_cobrado > 0): ?>
-                                        <button type="button" class="btn btn-sm btn-secondary" disabled>Pagado</button>
-                                    <?php else: ?>
-                                        <button type="button" class="btn btn-sm btn-warning" onclick="marcarFilaPendiente(<?php echo $index; ?>)">
-                                            Marcar pendiente
-                                        </button>
-                                    <?php endif; ?>
                                 </td>
                                 <td>
                                     <label>
@@ -129,8 +107,6 @@ include __DIR__ . '/../layouts/header.php';
                                             echo '✅ Cobrado';
                                         } elseif ($estado_visita === 'pagado_retraso') {
                                             echo '✅ Pagado con retraso';
-                                        } elseif ($estado_visita === 'pendiente') {
-                                            echo '🕒 Pendiente';
                                         } else {
                                             echo '📌 Programado';
                                         }
@@ -168,7 +144,6 @@ include __DIR__ . '/../layouts/header.php';
             $total_esperado = 0;
             $total_cobrado = 0;
             $pendientes = 0;
-            $pendientes_marcados = 0;
             
             foreach ($cobros_hoy as $cobro) {
                 switch($cobro['tipo']) {
@@ -191,10 +166,6 @@ include __DIR__ . '/../layouts/header.php';
                 if ($cobrado == 0) {
                     $pendientes++;
                 }
-
-                if ($estado_visita === 'pendiente') {
-                    $pendientes_marcados++;
-                }
             }
             
             $porcentaje = $total_esperado > 0 ? ($total_cobrado / $total_esperado) * 100 : 0;
@@ -216,11 +187,6 @@ include __DIR__ . '/../layouts/header.php';
                     <p class="stat-value text-warning"><?php echo $pendientes; ?></p>
                 </div>
 
-                <div class="stat-card">
-                    <h3>Pendientes Marcados</h3>
-                    <p class="stat-value text-info"><?php echo $pendientes_marcados; ?></p>
-                </div>
-                
                 <div class="stat-card">
                     <h3>Progreso del Día</h3>
                     <div class="progress-bar">
@@ -247,39 +213,6 @@ function limpiarSeleccion() {
         cb.checked = false;
     });
 }
-
-function actualizarMontoPorEstado(index, estado) {
-    const montoInput = document.querySelector(`input[name="pagos[${index}][monto]"]`);
-    if (!montoInput) return;
-
-    if (estado === 'pendiente') {
-        montoInput.value = '0';
-        montoInput.setAttribute('readonly', 'readonly');
-    } else {
-        montoInput.removeAttribute('readonly');
-    }
-}
-
-function marcarFilaPendiente(index) {
-    const estadoSelect = document.querySelector(`select[name="pagos[${index}][estado]"]`);
-    const checkbox = document.querySelectorAll('.cobro-checkbox')[index];
-
-    if (estadoSelect && !estadoSelect.disabled) {
-        estadoSelect.value = 'pendiente';
-        actualizarMontoPorEstado(index, 'pendiente');
-    }
-
-    if (checkbox && !checkbox.disabled) {
-        checkbox.checked = true;
-    }
-}
-
-document.querySelectorAll('.estado-cobro').forEach(select => {
-    select.addEventListener('change', function() {
-        const index = this.dataset.index;
-        actualizarMontoPorEstado(index, this.value);
-    });
-});
 
 // Validar formulario antes de enviar
 document.getElementById('formCobros').addEventListener('submit', function(e) {

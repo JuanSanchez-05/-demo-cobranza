@@ -25,8 +25,6 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
     <?php if (isset($_GET['mensaje'])): ?>
         <?php if ($_GET['mensaje'] === 'pago_registrado'): ?>
             <div class="alert alert-success">✓ Pago registrado exitosamente</div>
-        <?php elseif ($_GET['mensaje'] === 'pendiente_marcado'): ?>
-            <div class="alert alert-info">⭕ Visita registrada como pendiente. Se completará cuando se realice el pago.</div>
         <?php elseif ($_GET['mensaje'] === 'dia_extra_agregado'): ?>
             <div class="alert alert-success">✓ Se agregó un día extra para seguir cobrando el saldo pendiente.</div>
         <?php elseif ($_GET['mensaje'] === 'error_pago'): ?>
@@ -197,7 +195,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             $es_pendiente_marcado = ($pago_existente && $monto_pago == 0 && !empty($pago_existente['fecha_registro']));
 
                             $puede_registrar = false;
-                            if (!$pago_registrado && !$es_pendiente_marcado && !$primer_pendiente_habilitado) {
+                            if (!$pago_registrado && !$primer_pendiente_habilitado) {
                                 $puede_registrar = true;
                                 $primer_pendiente_habilitado = true;
                             }
@@ -210,12 +208,10 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             $es_pago_parcial = ($pago_registrado && $faltante_dia > 0.009);
                             if ($pago_registrado) {
                                 $saldo_despues = floatval($pago_existente['saldo']);
-                            } elseif ($es_pendiente_marcado) {
-                                $saldo_despues = $saldo_antes;
                             } else {
                                 $saldo_despues = max(0, $saldo_antes - $monto_esperado_dia);
                             }
-                            if ($puede_registrar || $es_pendiente_marcado) {
+                            if ($puede_registrar) {
                                 $hay_dia_disponible = true;
                             }
                         ?>
@@ -251,31 +247,6 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                     <?php else: ?>
                                         <span class="text-muted">✓ Pagado</span>
                                     <?php endif; ?>
-                                <?php elseif ($es_pendiente_marcado): ?>
-                                    <div style="margin-bottom: 8px;">
-                                        <span class="badge" style="background-color: #ffc107; color: #000;">⭕ Pendiente</span>
-                                    </div>
-                                    <form method="POST" style="display: flex; gap: 5px; align-items: center;">
-                                        <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
-                                        <div style="display: flex; flex-direction: column; gap: 3px;">
-                                            <input 
-                                                type="number" 
-                                                name="monto" 
-                                                step="0.01" 
-                                                min="0" 
-                                                max="<?php echo $monto_maximo_dia; ?>" 
-                                                value="<?php echo min($monto_maximo_dia, max($monto_esperado_dia, 0)); ?>" 
-                                                placeholder="Monto" 
-                                                required
-                                                style="width: 90px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;"
-                                                title="Máximo: $<?php echo number_format($monto_maximo_dia, 2); ?>"
-                                            >
-                                            <small style="color: #666; font-size: 10px;">Max: $<?php echo number_format($monto_maximo_dia, 2); ?></small>
-                                        </div>
-                                        <button type="submit" name="registrar_pago" class="btn btn-sm btn-info">
-                                            💵 Cobrar
-                                        </button>
-                                    </form>
                                 <?php elseif ($puede_registrar): ?>
                                     <form method="POST" style="display: flex; gap: 5px; align-items: center;">
                                         <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">

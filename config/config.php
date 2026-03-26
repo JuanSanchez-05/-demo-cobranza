@@ -1471,7 +1471,10 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     if ($es_pagado_con_retraso) {
         $observaciones[] = 'pagado con retraso';
     }
-    if ($faltante_dia > 0) {
+    if ($monto <= 0 && $faltante_dia > 0) {
+        $observaciones[] = 'Pendiente total del día: $' . number_format($faltante_dia, 2) . ' (no dio nada)';
+    }
+    if ($monto > 0 && $faltante_dia > 0) {
         $observaciones[] = 'Pendiente del día: $' . number_format($faltante_dia, 2);
     }
     $observacion_nueva = implode(' | ', $observaciones);
