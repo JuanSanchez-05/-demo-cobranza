@@ -262,9 +262,9 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                                 type="number" 
                                                 name="monto" 
                                                 step="0.01" 
-                                                min="0.01" 
+                                                min="0" 
                                                 max="<?php echo $monto_maximo_dia; ?>" 
-                                                value="<?php echo min($monto_maximo_dia, max($monto_esperado_dia, 0.01)); ?>" 
+                                                value="<?php echo min($monto_maximo_dia, max($monto_esperado_dia, 0)); ?>" 
                                                 placeholder="Monto" 
                                                 required
                                                 style="width: 90px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;"
@@ -284,9 +284,9 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                                 type="number" 
                                                 name="monto" 
                                                 step="0.01" 
-                                                min="0.01" 
+                                                min="0" 
                                                 max="<?php echo $monto_maximo_dia; ?>" 
-                                                value="<?php echo min($monto_maximo_dia, max($monto_esperado_dia, 0.01)); ?>" 
+                                                value="<?php echo min($monto_maximo_dia, max($monto_esperado_dia, 0)); ?>" 
                                                 placeholder="Monto" 
                                                 required
                                                 style="width: 90px; padding: 4px; border: 1px solid #ddd; border-radius: 4px;"
@@ -296,12 +296,6 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                                         </div>
                                         <button type="submit" name="registrar_pago" class="btn btn-sm btn-success">
                                             💵 Ingresar Monto
-                                        </button>
-                                    </form>
-                                    <form method="POST" style="display: inline; margin-left: 5px;">
-                                        <input type="hidden" name="dia" value="<?php echo $dia_buscar; ?>">
-                                        <button type="submit" name="marcar_pendiente" class="btn btn-sm btn-warning">
-                                            ⭕ Marcar Pendiente
                                         </button>
                                     </form>
                                 <?php else: ?>
