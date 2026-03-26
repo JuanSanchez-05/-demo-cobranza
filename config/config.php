@@ -1298,9 +1298,32 @@ function obtenerMontoProgramadoPeriodoTarjeta($tarjeta, $dia, $saldoAntes = null
 }
 
 function obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia, $saldoAntes) {
-    $pendienteArrastrado = obtenerPendienteArrastradoHastaDiaTarjeta($tarjeta, $dia);
+    $db = getDB();
+    $tarjeta_id = $tarjeta['id'];
+    
+    // Obtener monto programado para el día actual
     $montoDia = obtenerMontoProgramadoPeriodoTarjeta($tarjeta, $dia, $saldoAntes);
-    $maximo = $montoDia + $pendienteArrastrado;
+    
+    // Obtener suma de atrasos de días previos (con fecha < hoy y pago = 0)
+    $hoy = date('Y-m-d');
+    $stmt = $db->prepare("
+        SELECT COALESCE(SUM(
+            CASE
+                WHEN t.tipo = 'antigua_semanal' THEN t.pago_semanal
+                WHEN t.tipo = 'antigua_diaria' THEN t.cuota_diaria
+                WHEN t.tipo = 'nueva' THEN t.pago
+                ELSE 0
+            END
+        ), 0) as atraso_acumulado
+        FROM pagos p
+        JOIN tarjetas t ON p.tarjeta_id = t.id
+        WHERE p.tarjeta_id = ? AND p.dia < ? AND p.fecha < ? AND p.pago = 0
+    ");
+    $stmt->execute([$tarjeta_id, $dia, $hoy]);
+    $atraso_acumulado = floatval($stmt->fetchColumn());
+    
+    // Máximo permitido = monto del día actual + atrasos acumulados
+    $maximo = $montoDia + $atraso_acumulado;
 
     return min(max(0, floatval($saldoAntes)), max(0, $maximo));
 }
@@ -1356,11 +1379,13 @@ function agregarDiaExtraPago($tarjeta_id) {
 
     $siguienteFecha = calcularSiguienteFechaPagoSegunTipo($tarjeta['tipo'] ?? 'nueva', $ultimoPago['fecha'] ?? date('Y-m-d'));
 
+    // Insertar día extra SOLO con el saldo restante de la deuda
     $stmt = $db->prepare("
         INSERT INTO pagos (tarjeta_id, dia, fecha, pago, saldo, observacion)
-        VALUES (?, ?, ?, 0, ?, 'Día extra agregado por saldo pendiente')
+        VALUES (?, ?, ?, 0, ?, ?)
     ");
-    $resultado = $stmt->execute([$tarjeta_id, $siguienteDia, $siguienteFecha, $saldoRestante]);
+    $observacion_extra = 'Día extra por saldo pendiente: $' . number_format($saldoRestante, 2);
+    $resultado = $stmt->execute([$tarjeta_id, $siguienteDia, $siguienteFecha, $saldoRestante, $observacion_extra]);
 
     if (!$resultado) {
         return false;
@@ -1414,6 +1439,9 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     
     if (!$pago) return false;
 
+    $tarjeta = obtenerTarjetaPorId($tarjeta_id);
+    if (!$tarjeta) return false;
+
     $hoy = date('Y-m-d');
     $es_pagado_con_retraso = (
         floatval($pago['pago'] ?? 0) <= 0 &&
@@ -1422,14 +1450,6 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
         $pago['fecha'] < $hoy
     );
 
-    $observacion_actual = trim((string)($pago['observacion'] ?? ''));
-    $observacion_nueva = $observacion_actual;
-    if ($es_pagado_con_retraso && stripos($observacion_actual, 'pagado con retraso') === false) {
-        $observacion_nueva = $observacion_actual === ''
-            ? 'pagado con retraso'
-            : ($observacion_actual . ' | pagado con retraso');
-    }
-    
     // Calcular el saldo DESPUÉS del pago
     $saldo_antes = floatval($pago['saldo']);
     $saldo_despues = max(0, $saldo_antes - $monto);
@@ -1437,6 +1457,7 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     $pago_total_dia = floatval($pago['pago']) + $monto;
     $faltante_dia = max(0, $monto_programado_dia - $pago_total_dia);
 
+    // Construir observación
     $observaciones = [];
     if ($es_pagado_con_retraso) {
         $observaciones[] = 'pagado con retraso';
@@ -1454,6 +1475,13 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     ");
     $result = $stmt->execute([$monto, $saldo_despues, $cobrador_id, $fechaRegistro, $observacion_nueva, $tarjeta_id, $dia]);
     
+    if (!$result) return false;
+    
+    // Si se completa un atraso (había pendiente anterior y ahora se cubre), marcar días anteriores como pagados
+    if ($es_pagado_con_retraso && $faltante_dia <= 0.009) {
+        marcarDiasAnterioresComoPagados($tarjeta_id, $dia);
+    }
+    
     // Recalcular saldos de días posteriores
     recalcularSaldosPosteriores($tarjeta_id, $dia);
     
@@ -1461,6 +1489,43 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     verificarTarjetaCompletada($tarjeta_id);
     
     return $result;
+}
+
+function marcarDiasAnterioresComoPagados($tarjeta_id, $dia_actual) {
+    $db = getDB();
+    $tarjeta = obtenerTarjetaPorId($tarjeta_id);
+    if (!$tarjeta) return;
+    
+    // Obtener todos los días anteriores con estado pendiente
+    $stmt = $db->prepare("
+        SELECT dia, saldo, pago FROM pagos 
+        WHERE tarjeta_id = ? AND dia < ? 
+        ORDER BY dia ASC
+    ");
+    $stmt->execute([$tarjeta_id, $dia_actual]);
+    $dias_anteriores = $stmt->fetchAll();
+    
+    if (empty($dias_anteriores)) return;
+    
+    // Marcar cada día anterior como completamente pagado
+    foreach ($dias_anteriores as $dia_ant) {
+        $dia_num = intval($dia_ant['dia']);
+        $saldo_ant = floatval($dia_ant['saldo']);
+        
+        // Si el día anterior aún tiene saldo (estaba pendiente), marcarlo como pagado
+        if ($saldo_ant > 0.009) {
+            $monto_base = obtenerMontoProgramadoDia($tarjeta_id, $saldo_ant);
+            $fecha_registro = date('Y-m-d H:i:s');
+            
+            $stmt = $db->prepare("
+                UPDATE pagos 
+                SET pago = ?, saldo = 0, observacion = ?
+                WHERE tarjeta_id = ? AND dia = ?
+            ");
+            $observacion = 'Pagado cuando se completó el atraso del día ' . intval($dia_actual);
+            $stmt->execute([$monto_base, $observacion, $tarjeta_id, $dia_num]);
+        }
+    }
 }
 
 function recalcularSaldosPosteriores($tarjeta_id, $dia_desde) {
