@@ -1304,20 +1304,22 @@ function obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia, $saldoAntes) {
     // Obtener monto programado para el día actual
     $montoDia = obtenerMontoProgramadoPeriodoTarjeta($tarjeta, $dia, $saldoAntes);
     
-    // Obtener suma de atrasos de días previos (con fecha < hoy y pago = 0)
+    // Obtener suma de faltantes reales de días previos (programado - pagado)
     $hoy = date('Y-m-d');
     $stmt = $db->prepare("
         SELECT COALESCE(SUM(
-            CASE
-                WHEN t.tipo = 'antigua_semanal' THEN t.pago_semanal
-                WHEN t.tipo = 'antigua_diaria' THEN t.cuota_diaria
-                WHEN t.tipo = 'nueva' THEN t.pago
-                ELSE 0
-            END
+            GREATEST(0,
+                CASE
+                    WHEN t.tipo = 'antigua_semanal' THEN t.pago_semanal
+                    WHEN t.tipo = 'antigua_diaria' THEN t.cuota_diaria
+                    WHEN t.tipo = 'nueva' THEN t.pago
+                    ELSE 0
+                END - COALESCE(p.pago, 0)
+            )
         ), 0) as atraso_acumulado
         FROM pagos p
         JOIN tarjetas t ON p.tarjeta_id = t.id
-        WHERE p.tarjeta_id = ? AND p.dia < ? AND p.fecha < ? AND p.pago = 0
+        WHERE p.tarjeta_id = ? AND p.dia < ? AND p.fecha < ?
     ");
     $stmt->execute([$tarjeta_id, $dia, $hoy]);
     $atraso_acumulado = floatval($stmt->fetchColumn());
@@ -1460,10 +1462,15 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
         $pago['fecha'] < $hoy
     );
 
-    // Calcular el saldo DESPUÉS del pago
+    // Separar monto del día vs excedente para atrasos
     $saldo_antes = floatval($pago['saldo']);
+    $faltante_actual_antes = max(0, $monto_programado_dia - $pago_actual);
+    $monto_para_dia = min($monto, $faltante_actual_antes);
+    $monto_para_atrasos = max(0, $monto - $monto_para_dia);
+
+    // Calcular el saldo DESPUÉS del pago total (día + atrasos)
     $saldo_despues = max(0, $saldo_antes - $monto);
-    $pago_total_dia = floatval($pago['pago']) + $monto;
+    $pago_total_dia = floatval($pago['pago']) + $monto_para_dia;
     $faltante_dia = max(0, $monto_programado_dia - $pago_total_dia);
 
     // Construir observación
@@ -1485,13 +1492,13 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
         SET pago = pago + ?, saldo = ?, cobrador_id = ?, fecha_registro = ?, observacion = ?
         WHERE tarjeta_id = ? AND dia = ?
     ");
-    $result = $stmt->execute([$monto, $saldo_despues, $cobrador_id, $fechaRegistro, $observacion_nueva, $tarjeta_id, $dia]);
+    $result = $stmt->execute([$monto_para_dia, $saldo_despues, $cobrador_id, $fechaRegistro, $observacion_nueva, $tarjeta_id, $dia]);
     
     if (!$result) return false;
     
-    // Si se completa un atraso, distribuir pago y marcar días anteriores como pagados
-    if ($es_pagado_con_retraso && $faltante_dia <= 0.009) {
-        distribuirPagoEnAtrasos($tarjeta_id, $dia, $monto);
+    // Si hubo excedente del día, aplicarlo a atrasos anteriores
+    if ($monto_para_atrasos > 0.009) {
+        distribuirPagoEnAtrasos($tarjeta_id, $dia, $monto_para_atrasos, $cobrador_id, $fechaRegistro);
     }
     
     // Recalcular saldos de días posteriores
@@ -1503,14 +1510,18 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     return $result;
 }
 
-function distribuirPagoEnAtrasos($tarjeta_id, $dia_actual, $monto_pagado) {
+function distribuirPagoEnAtrasos($tarjeta_id, $dia_actual, $monto_pagado, $cobrador_id = null, $fechaRegistro = null) {
     $db = getDB();
     $tarjeta = obtenerTarjetaPorId($tarjeta_id);
     if (!$tarjeta) return;
+
+    if ($fechaRegistro === null) {
+        $fechaRegistro = date('Y-m-d H:i:s');
+    }
     
     // Obtener todos los días anteriores
     $stmt = $db->prepare("
-        SELECT dia, saldo, pago FROM pagos 
+        SELECT dia, saldo, pago, observacion FROM pagos 
         WHERE tarjeta_id = ? AND dia < ? 
         ORDER BY dia ASC
     ");
@@ -1536,14 +1547,21 @@ function distribuirPagoEnAtrasos($tarjeta_id, $dia_actual, $monto_pagado) {
         // Si hay faltante en este día, cubrirlo con el pago distribuible
         if ($faltante_dia_ant > 0.009) {
             $a_pagar = min($faltante_dia_ant, $restante_distribuir);
+
+            $observacion_actual = trim((string)($dia_ant['observacion'] ?? ''));
+            $nota_abono = ($a_pagar >= ($faltante_dia_ant - 0.009))
+                ? ('Completado con abono del día ' . intval($dia_actual))
+                : ('Abono del día ' . intval($dia_actual) . ': $' . number_format($a_pagar, 2));
+            $observacion_nueva = $observacion_actual === ''
+                ? $nota_abono
+                : ($observacion_actual . ' | ' . $nota_abono);
             
             $stmt = $db->prepare("
                 UPDATE pagos 
-                SET pago = pago + ?, saldo = 0, observacion = ?
+                SET pago = pago + ?, observacion = ?, cobrador_id = COALESCE(cobrador_id, ?), fecha_registro = COALESCE(fecha_registro, ?)
                 WHERE tarjeta_id = ? AND dia = ?
             ");
-            $observacion = 'Completado cuando se pagó el día ' . intval($dia_actual);
-            $stmt->execute([$a_pagar, $observacion, $tarjeta_id, $dia_num]);
+            $stmt->execute([$a_pagar, $observacion_nueva, $cobrador_id, $fechaRegistro, $tarjeta_id, $dia_num]);
             
             $restante_distribuir -= $a_pagar;
         }
