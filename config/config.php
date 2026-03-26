@@ -542,11 +542,12 @@ function registrarPagoTarjeta($tarjeta_id, $numero_dia) {
             $saldo_anterior = $pago_actual['saldo'] + $pago_actual['pago']; // saldo antes de este pago
             $nuevo_saldo = $saldo_anterior - $monto;
 
+            $fechaRegistro = date('Y-m-d H:i:s');
             $stmt = $db->prepare("
-                UPDATE pagos SET pago = ?, saldo = ?, cobrador_id = ?, fecha_registro = NOW()
+                UPDATE pagos SET pago = ?, saldo = ?, cobrador_id = ?, fecha_registro = ?
                 WHERE tarjeta_id = ? AND dia = ?
             ");
-            $stmt->execute([$monto, $nuevo_saldo, $_SESSION['usuario_id'], $tarjeta_id, $numero_dia]);
+            $stmt->execute([$monto, $nuevo_saldo, $_SESSION['usuario_id'], $fechaRegistro, $tarjeta_id, $numero_dia]);
         } else {
             // Obtener saldo del pago anterior
             $stmt = $db->prepare("SELECT saldo FROM pagos WHERE tarjeta_id = ? AND dia < ? ORDER BY dia DESC LIMIT 1");
@@ -555,11 +556,12 @@ function registrarPagoTarjeta($tarjeta_id, $numero_dia) {
             $saldo_base = $anterior ? $anterior['saldo'] : $tarjeta['total_prestamo'];
             $nuevo_saldo = $saldo_base - $monto;
 
+            $fechaRegistro = date('Y-m-d H:i:s');
             $stmt = $db->prepare("
                 INSERT INTO pagos (tarjeta_id, dia, fecha, pago, saldo, cobrador_id, fecha_registro)
-                VALUES (?, ?, CURRENT_DATE, ?, ?, ?, NOW())
+                VALUES (?, ?, CURRENT_DATE, ?, ?, ?, ?)
             ");
-            $stmt->execute([$tarjeta_id, $numero_dia, $monto, $nuevo_saldo, $_SESSION['usuario_id']]);
+            $stmt->execute([$tarjeta_id, $numero_dia, $monto, $nuevo_saldo, $_SESSION['usuario_id'], $fechaRegistro]);
         }
 
         // Si saldo llega a 0, marcar como completada
@@ -582,7 +584,6 @@ function registrarPagoTarjeta($tarjeta_id, $numero_dia) {
 function obtenerEstadisticasTrabajador($trabajador_id) {
     $db  = getDB();
     $hoy = date('Y-m-d');
-
     $stmt = $db->prepare("SELECT COUNT(*) FROM tarjetas t JOIN carteras c ON t.cartera_id = c.id WHERE c.trabajador_id = ? AND t.estado = 'activo'");
     $stmt->execute([$trabajador_id]);
     $total_tarjetas = $stmt->fetchColumn();
@@ -1404,6 +1405,7 @@ function obtenerMontoProgramadoDia($tarjeta_id, $saldo_antes = 0) {
 
 function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     $db = getDB();
+    $fechaRegistro = date('Y-m-d H:i:s');
     
     // Obtener el pago actual
     $stmt = $db->prepare("SELECT * FROM pagos WHERE tarjeta_id = ? AND dia = ?");
@@ -1447,10 +1449,10 @@ function registrarPago($tarjeta_id, $dia, $monto, $cobrador_id = null) {
     // Actualizar el pago actual
     $stmt = $db->prepare("
         UPDATE pagos 
-        SET pago = pago + ?, saldo = ?, cobrador_id = ?, fecha_registro = NOW(), observacion = ?
+        SET pago = pago + ?, saldo = ?, cobrador_id = ?, fecha_registro = ?, observacion = ?
         WHERE tarjeta_id = ? AND dia = ?
     ");
-    $result = $stmt->execute([$monto, $saldo_despues, $cobrador_id, $observacion_nueva, $tarjeta_id, $dia]);
+    $result = $stmt->execute([$monto, $saldo_despues, $cobrador_id, $fechaRegistro, $observacion_nueva, $tarjeta_id, $dia]);
     
     // Recalcular saldos de días posteriores
     recalcularSaldosPosteriores($tarjeta_id, $dia);
@@ -1502,6 +1504,7 @@ function recalcularSaldosPosteriores($tarjeta_id, $dia_desde) {
 
 function registrarPagoPendiente($tarjeta_id, $dia, $cobrador_id = null) {
     $db = getDB();
+    $fechaRegistro = date('Y-m-d H:i:s');
 
     $stmt = $db->prepare("SELECT pago, saldo FROM pagos WHERE tarjeta_id = ? AND dia = ?");
     $stmt->execute([$tarjeta_id, $dia]);
@@ -1521,11 +1524,11 @@ function registrarPagoPendiente($tarjeta_id, $dia, $cobrador_id = null) {
 
     $stmt = $db->prepare("
         UPDATE pagos
-        SET pago = 0, cobrador_id = ?, fecha_registro = NOW(), observacion = ?
+        SET pago = 0, cobrador_id = ?, fecha_registro = ?, observacion = ?
         WHERE tarjeta_id = ? AND dia = ?
     ");
 
-    return $stmt->execute([$cobrador_id, $observacion, $tarjeta_id, $dia]);
+    return $stmt->execute([$cobrador_id, $fechaRegistro, $observacion, $tarjeta_id, $dia]);
 }
 
 function actualizarSaldosPosteriores($tarjeta_id, $dia_inicio, $cambio_saldo) {
