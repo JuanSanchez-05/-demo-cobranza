@@ -1306,7 +1306,6 @@ function obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia, $saldoAntes) {
     
     // Obtener suma de faltantes reales de días previos ya procesados (programado - pagado)
     // En semanal solo cuentan días cobrables (múltiplos de 7)
-    $hoy = date('Y-m-d');
     $stmt = $db->prepare("
         SELECT COALESCE(SUM(
             GREATEST(0,
@@ -1322,11 +1321,10 @@ function obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia, $saldoAntes) {
         JOIN tarjetas t ON p.tarjeta_id = t.id
                 WHERE p.tarjeta_id = ?
                     AND p.dia < ?
-                    AND p.fecha < ?
                     AND p.fecha_registro IS NOT NULL
                     AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
     ");
-    $stmt->execute([$tarjeta_id, $dia, $hoy]);
+        $stmt->execute([$tarjeta_id, $dia]);
     $atraso_acumulado = floatval($stmt->fetchColumn());
     
     // Máximo permitido = monto del día actual + atrasos acumulados

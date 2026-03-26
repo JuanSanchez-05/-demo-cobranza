@@ -196,6 +196,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             $pago_registrado = ($pago_existente && $monto_pago > 0);
                             $no_pagado_registrado = ($pago_existente && $monto_pago == 0 && !empty($pago_existente['fecha_registro']));
                             $dia_procesado = ($pago_registrado || $no_pagado_registrado);
+                            $es_dia_extra = (stripos($nota_pago, 'día extra por saldo pendiente') !== false);
 
                             $puede_registrar = false;
                             if (!$dia_procesado && !$primer_pendiente_habilitado) {
@@ -207,10 +208,15 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                             $saldo_antes = $pago_existente ? floatval($pago_existente['saldo']) : max(0, $total - ($i - 1) * $pago_unitario);
                             $monto_esperado_dia = min($pago_unitario, $saldo_antes);
                             $monto_maximo_dia = obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia_buscar, $saldo_antes);
+                            if ($es_dia_extra) {
+                                $monto_maximo_dia = max(0, $saldo_antes);
+                            }
                             $faltante_dia = max(0, $monto_esperado_dia - $monto_pago);
                             $es_pago_parcial = ($pago_registrado && $faltante_dia > 0.009);
                             if ($pago_registrado || $no_pagado_registrado) {
                                 $saldo_despues = floatval($pago_existente['saldo']);
+                            } elseif ($es_dia_extra) {
+                                $saldo_despues = $saldo_antes;
                             } else {
                                 $saldo_despues = max(0, $saldo_antes - $monto_esperado_dia);
                             }
