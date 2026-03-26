@@ -98,6 +98,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                     <div><strong>Cargo del Préstamo:</strong> $<?php echo number_format($tarjeta['cargo_prestamo'] ?? 0, 2); ?></div>
                     <div><strong>Total del Préstamo:</strong> $<?php echo number_format($tarjeta['total_prestamo'], 2); ?></div>
                     <div><strong>Pago Semanal:</strong> $<?php echo number_format($tarjeta['pago_semanal'], 2); ?></div>
+                    <div><strong>Pago Realizado:</strong> $<?php echo number_format($tarjeta['pago_semanal'], 2); ?></div>
                     <div><strong>Semanas a Pagar:</strong> <?php echo $tarjeta['semanas_pagar']; ?></div>
                     <div><strong>Día de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['dia_cobro']); ?></div>
                     <?php $nombre_promotor = obtenerNombreUsuarioPorId($tarjeta['promotor_id'] ?? 0); ?>
@@ -111,6 +112,7 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                     <div><strong>Dirección:</strong> <?php echo htmlspecialchars($tarjeta['direccion'] ?? 'N/A'); ?></div>
                     <div><strong>Teléfono:</strong> <?php echo htmlspecialchars($tarjeta['telefono'] ?? 'N/A'); ?></div>
                     <div><strong>Valor Total:</strong> $<?php echo number_format($tarjeta['valor'] ?? 0, 2); ?></div>
+                    <div><strong>Pago Realizado:</strong> $<?php echo number_format($tarjeta['cuota_diaria'], 2); ?></div>
                 </div>
             <?php else: ?>
                 <div class="info-grid">

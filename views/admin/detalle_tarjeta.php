@@ -54,6 +54,7 @@ $nombre_trab = $tarjeta['trabajador_nombre'] ?? obtenerNombreUsuarioPorId($tarje
                     <div><strong>Total del Préstamo:</strong> $<?php echo number_format($tarjeta['total_prestamo'], 2); ?></div>
                     <div><strong>Semanas a Pagar:</strong> <?php echo $tarjeta['semanas_pagar']; ?></div>
                     <div><strong>Pago Semanal:</strong> $<?php echo number_format($tarjeta['pago_semanal'], 2); ?></div>
+                    <div><strong>Pago Realizado:</strong> $<?php echo number_format($tarjeta['pago_semanal'], 2); ?></div>
                 <?php elseif ($tarjeta['tipo'] === 'antigua_diaria'): ?>
                     <div><strong>Nombre:</strong> <?php echo htmlspecialchars($tarjeta['nombre'] ?? 'N/A'); ?></div>
                     <div><strong>Teléfono:</strong> <?php echo htmlspecialchars($tarjeta['telefono'] ?? 'N/A'); ?></div>
@@ -62,6 +63,7 @@ $nombre_trab = $tarjeta['trabajador_nombre'] ?? obtenerNombreUsuarioPorId($tarje
                     <div><strong>Valor Total:</strong> $<?php echo number_format($tarjeta['total_prestamo'], 2); ?></div>
                     <div><strong>Cuota Diaria:</strong> $<?php echo number_format($tarjeta['cuota_diaria'], 2); ?></div>
                     <div><strong>Días a Pagar:</strong> <?php echo $tarjeta['dias_pagar']; ?></div>
+                    <div><strong>Pago Realizado:</strong> $<?php echo number_format($tarjeta['cuota_diaria'], 2); ?></div>
                 <?php else: ?>
                     <div><strong>Fecha:</strong> <?php echo htmlspecialchars($tarjeta['fecha']); ?></div>
                     <div><strong>Lugar:</strong> <?php echo htmlspecialchars($tarjeta['lugar']); ?></div>
