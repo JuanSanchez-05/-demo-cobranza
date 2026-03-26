@@ -1096,14 +1096,18 @@ function crearPagosProgramados($tarjeta_id, $data) {
         }
         
     } elseif ($tipo === 'antigua_diaria') {
-        // DIARIA: crear registros DIARIOS, pago cada día (inicia al día siguiente)
+        // DIARIA: crear registros de LUNES a SÁBADO (domingo no cuenta)
         $cuota_diaria = floatval($data['cuota_diaria'] ?? 0);
         $dias = intval($data['dias_pagar'] ?? 0);
         $saldo_pendiente = $total;
+        $dias_calendario = 0;
         
         for ($dia = 1; $dia <= $dias; $dia++) {
-            // Día 1 = fecha_base + 1 día (siguiente día)
-            $fecha_pago = date('Y-m-d', strtotime($fecha_base . ' +' . $dia . ' days'));
+            do {
+                $dias_calendario++;
+                $fecha_pago = date('Y-m-d', strtotime($fecha_base . ' +' . $dias_calendario . ' days'));
+                $dia_semana = date('w', strtotime($fecha_pago)); // 0=Domingo
+            } while ($dia_semana == 0);
             
             // Guardar el saldo ANTES de realizar el pago de este día
             $stmt = $db->prepare("
@@ -1346,7 +1350,7 @@ function calcularSiguienteFechaPagoSegunTipo($tipo, $fechaBase) {
     do {
         $timestamp = strtotime('+1 day', $timestamp);
         $diaSemana = date('w', $timestamp);
-    } while ($tipo === 'nueva' && $diaSemana == 0);
+    } while (($tipo === 'nueva' || $tipo === 'antigua_diaria') && $diaSemana == 0);
 
     return date('Y-m-d', $timestamp);
 }
