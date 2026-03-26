@@ -596,7 +596,7 @@ function obtenerEstadisticasTrabajador($trabajador_id) {
         FROM pagos p
         JOIN tarjetas t ON p.tarjeta_id = t.id
         JOIN carteras c ON t.cartera_id = c.id
-        WHERE c.trabajador_id = ? AND p.fecha = ? AND p.pago > 0
+                WHERE c.trabajador_id = ? AND DATE(p.fecha_registro) = ? AND p.pago > 0
           AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
     ");
     $stmt->execute([$trabajador_id, $hoy]);
@@ -727,7 +727,7 @@ function obtenerCobradoTrabajadorPorFecha($trabajador_id, $fecha) {
         FROM pagos p
         JOIN tarjetas t ON p.tarjeta_id = t.id
         JOIN carteras c ON t.cartera_id = c.id
-        WHERE c.trabajador_id = ? AND p.fecha = ? AND p.pago > 0
+                WHERE c.trabajador_id = ? AND DATE(p.fecha_registro) = ? AND p.pago > 0
           AND (t.tipo <> 'antigua_semanal' OR MOD(p.dia, 7) = 0)
     ");
     $stmt->execute([$trabajador_id, $fecha]);
