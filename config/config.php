@@ -1338,7 +1338,7 @@ function agregarDiaExtraPago($tarjeta_id) {
         return false;
     }
 
-    $saldoRestante = max(0, floatval($ultimoPago['saldo'] ?? 0) - floatval($ultimoPago['pago'] ?? 0));
+    $saldoRestante = max(0, floatval($ultimoPago['saldo'] ?? 0));
     if ($saldoRestante <= 0.009) {
         return false;
     }
@@ -1553,7 +1553,7 @@ function verificarTarjetaCompletada($tarjeta_id) {
     $ultimo_pago = $stmt->fetch();
     
     if ($ultimo_pago) {
-        $saldo_final = floatval($ultimo_pago['saldo']) - floatval($ultimo_pago['pago']);
+        $saldo_final = floatval($ultimo_pago['saldo']);
         
         if ($saldo_final <= 0) {
             $stmt = $db->prepare("

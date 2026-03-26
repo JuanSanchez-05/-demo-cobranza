@@ -132,8 +132,8 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
                     <div><strong>Total del Préstamo:</strong> $<?php echo number_format($tarjeta['total_prestamo'], 2); ?></div>
                     <div><strong>Pago:</strong> $<?php echo number_format($tarjeta['pago'] ?? 0, 2); ?></div>
                     <div><strong>Días a Pagar:</strong> <?php echo $tarjeta['dias_pagar'] ?? 'N/A'; ?></div>
-                    <div><strong>Día de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['dia_cobro']); ?></div>
-                    <div><strong>Hora de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['hora_cobro']); ?></div>
+                    <div><strong>Día de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['dia_cobro'] ?? 'N/A'); ?></div>
+                    <div><strong>Hora de Cobro:</strong> <?php echo htmlspecialchars($tarjeta['hora_cobro'] ?? 'N/A'); ?></div>
                     <?php $nombre_promotor = obtenerNombreUsuarioPorId($tarjeta['promotor_id'] ?? 0); ?>
                     <div><strong>Promotor:</strong> <?php echo htmlspecialchars($nombre_promotor); ?></div>
                 </div>
