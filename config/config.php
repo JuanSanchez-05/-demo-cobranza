@@ -1960,15 +1960,17 @@ function aprobarSolicitudRenovacion($solicitud_id, $admin_id) {
         return ['ok' => false, 'codigo' => 'sin_deuda', 'mensaje' => 'La tarjeta ya no tiene deuda pendiente'];
     }
 
-    if ($prestamo_nuevo <= 0 || $neto_entregar < 0) {
+    if ($prestamo_nuevo <= 0 || $neto_entregar <= 0) {
         return ['ok' => false, 'codigo' => 'prestamo_menor_deuda', 'mensaje' => 'El préstamo solicitado no alcanza para cubrir la deuda actual'];
     }
 
     $nueva_data = $solicitud['datos_nueva'] ?? [];
     $nueva_data['tipo'] = 'nueva';
-    $nueva_data['prestamo'] = $prestamo_nuevo;
+    // La nueva tarjeta debe nacer solo con el efectivo entregado al cliente
+    // (total capturado - deuda anterior que se liquida con la renovación).
+    $nueva_data['prestamo'] = round($neto_entregar, 2);
     $nueva_data['dias_pagar'] = 21;
-    $nueva_data['pago'] = round($prestamo_nuevo / 21, 2);
+    $nueva_data['pago'] = round($neto_entregar / 21, 2);
     $nueva_data['fecha'] = !empty($nueva_data['fecha']) ? $nueva_data['fecha'] : date('Y-m-d');
     $nueva_data['promotor_id'] = $tarjeta_origen['promotor_id'] ?? null;
 
