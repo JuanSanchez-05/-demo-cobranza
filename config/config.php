@@ -1935,14 +1935,30 @@ function aprobarSolicitudRenovacion($solicitud_id, $admin_id) {
     }
 
     $tarjeta_origen = obtenerTarjetaPorId(intval($solicitud['tarjeta_origen_id'] ?? 0));
-    $motivo = null;
-    if (!puedeSolicitarRenovacionTarjeta($tarjeta_origen, $motivo)) {
-        return ['ok' => false, 'codigo' => $motivo ?: 'no_permitido', 'mensaje' => 'La tarjeta de origen ya no cumple las condiciones para renovación'];
+    if (!$tarjeta_origen) {
+        return ['ok' => false, 'codigo' => 'tarjeta_no_encontrada', 'mensaje' => 'La tarjeta de origen no existe'];
+    }
+
+    // En aprobación NO validamos "ya_pendiente" porque esta solicitud aún está pendiente.
+    if (($tarjeta_origen['estado'] ?? 'activo') !== 'activo') {
+        return ['ok' => false, 'codigo' => 'tarjeta_inactiva', 'mensaje' => 'La tarjeta de origen ya no está activa'];
+    }
+
+    if (($tarjeta_origen['tipo'] ?? '') !== 'nueva') {
+        return ['ok' => false, 'codigo' => 'tipo_no_permitido', 'mensaje' => 'Solo se pueden aprobar renovaciones de tarjetas nuevas'];
+    }
+
+    if (obtenerDiaAvanceTarjeta($tarjeta_origen['id']) < 15) {
+        return ['ok' => false, 'codigo' => 'dia_menor_15', 'mensaje' => 'La tarjeta aún no alcanza el día 15 para renovar'];
     }
 
     $deuda_actual = obtenerDeudaActualTarjeta($tarjeta_origen['id']);
     $prestamo_nuevo = floatval($solicitud['prestamo_nuevo'] ?? 0);
     $neto_entregar = $prestamo_nuevo - $deuda_actual;
+
+    if ($deuda_actual <= 0.009) {
+        return ['ok' => false, 'codigo' => 'sin_deuda', 'mensaje' => 'La tarjeta ya no tiene deuda pendiente'];
+    }
 
     if ($prestamo_nuevo <= 0 || $neto_entregar < 0) {
         return ['ok' => false, 'codigo' => 'prestamo_menor_deuda', 'mensaje' => 'El préstamo solicitado no alcanza para cubrir la deuda actual'];
