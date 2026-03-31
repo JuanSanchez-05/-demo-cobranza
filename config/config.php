@@ -1771,13 +1771,27 @@ function puedeSolicitarRenovacionTarjeta($tarjeta, &$motivo = null) {
         return false;
     }
 
-    if (($tarjeta['tipo'] ?? '') !== 'nueva') {
-        $motivo = 'tipo_no_permitido';
-        return false;
-    }
+    $tipo = $tarjeta['tipo'] ?? '';
+    $dia_avance = obtenerDiaAvanceTarjeta($tarjeta['id']);
 
-    if (obtenerDiaAvanceTarjeta($tarjeta['id']) < 15) {
-        $motivo = 'dia_menor_15';
+    // Validar según tipo de tarjeta
+    if ($tipo === 'nueva') {
+        // Tarjeta nueva: desde día 15
+        if ($dia_avance < 15) {
+            $motivo = 'dia_menor_15';
+            return false;
+        }
+    } elseif ($tipo === 'antigua_diaria') {
+        // Tarjeta diaria: desde día 25
+        if ($dia_avance < 25) {
+            $motivo = 'dia_menor_25';
+            return false;
+        }
+    } elseif ($tipo === 'antigua_semanal') {
+        // Tarjeta semanal: siempre permitida (no hay restricción de día)
+    } else {
+        // Otros tipos no permiten renovación
+        $motivo = 'tipo_no_permitido';
         return false;
     }
 
@@ -1864,6 +1878,7 @@ function crearSolicitudRenovacion($tarjeta_origen_id, $datos_nueva, $solicitante
         'total_prestamo_nuevo' => round($total_prestamo_nuevo, 2),
         'prestamo_nuevo' => round($total_prestamo_nuevo, 2), // compatibilidad legacy
         'neto_al_solicitar' => round($neto_entregar, 2),
+        'dias_pagar_semanal' => intval($datos_nueva['dias_pagar_semanal'] ?? 0),
         'datos_nueva' => [
             'nombre' => trim($datos_nueva['nombre'] ?? ($tarjeta['nombre'] ?? '')),
             'fecha' => $datos_nueva['fecha'] ?? date('Y-m-d'),
@@ -1954,13 +1969,22 @@ function aprobarSolicitudRenovacion($solicitud_id, $admin_id) {
         return ['ok' => false, 'codigo' => 'tarjeta_inactiva', 'mensaje' => 'La tarjeta de origen ya no está activa'];
     }
 
-    if (($tarjeta_origen['tipo'] ?? '') !== 'nueva') {
-        return ['ok' => false, 'codigo' => 'tipo_no_permitido', 'mensaje' => 'Solo se pueden aprobar renovaciones de tarjetas nuevas'];
+    $tipo_origen = $tarjeta_origen['tipo'] ?? '';
+    $es_renovable = ($tipo_origen === 'nueva') || ($tipo_origen === 'antigua_diaria') || ($tipo_origen === 'antigua_semanal');
+    
+    if (!$es_renovable) {
+        return ['ok' => false, 'codigo' => 'tipo_no_permitido', 'mensaje' => 'Este tipo de tarjeta no permite renovación'];
     }
 
-    if (obtenerDiaAvanceTarjeta($tarjeta_origen['id']) < 15) {
+    // Validar requisitos de día según el tipo
+    $dia_avance = obtenerDiaAvanceTarjeta($tarjeta_origen['id']);
+    if ($tipo_origen === 'nueva' && $dia_avance < 15) {
         return ['ok' => false, 'codigo' => 'dia_menor_15', 'mensaje' => 'La tarjeta aún no alcanza el día 15 para renovar'];
     }
+    if ($tipo_origen === 'antigua_diaria' && $dia_avance < 25) {
+        return ['ok' => false, 'codigo' => 'dia_menor_25', 'mensaje' => 'La tarjeta aún no alcanza el día 25 para renovar'];
+    }
+    // antigua_semanal no tiene restricción de día
 
     $deuda_actual = obtenerDeudaActualTarjeta($tarjeta_origen['id']);
     $total_prestamo_nuevo = floatval($solicitud['total_prestamo_nuevo'] ?? ($solicitud['prestamo_nuevo'] ?? 0));
@@ -1976,11 +2000,24 @@ function aprobarSolicitudRenovacion($solicitud_id, $admin_id) {
     }
 
     $nueva_data = $solicitud['datos_nueva'] ?? [];
-    $nueva_data['tipo'] = 'nueva';
+    $nueva_data['tipo'] = $tipo_origen; // Mantener el mismo tipo
     // La nueva tarjeta usa el monto total acordado (capital + interés).
     $nueva_data['prestamo'] = round($total_prestamo_nuevo, 2);
-    $nueva_data['dias_pagar'] = 21;
-    $nueva_data['pago'] = round($total_prestamo_nuevo / 21, 2);
+    
+    // Determinar días de pago según tipo
+    if ($tipo_origen === 'nueva') {
+        $nueva_data['dias_pagar'] = 21;
+    } elseif ($tipo_origen === 'antigua_diaria') {
+        $nueva_data['dias_pagar'] = 30;
+    } else { // antigua_semanal
+        $dias_pagar_semanal = intval($solicitud['dias_pagar_semanal'] ?? 0);
+        if ($dias_pagar_semanal <= 0) {
+            return ['ok' => false, 'codigo' => 'dias_invalidos', 'mensaje' => 'No se especificó el plazo para la tarjeta semanal'];
+        }
+        $nueva_data['dias_pagar'] = $dias_pagar_semanal;
+    }
+    
+    $nueva_data['pago'] = round($total_prestamo_nuevo / (intval($nueva_data['dias_pagar']) ?: 21), 2);
     $nueva_data['fecha'] = !empty($nueva_data['fecha']) ? $nueva_data['fecha'] : date('Y-m-d');
     $nueva_data['promotor_id'] = $tarjeta_origen['promotor_id'] ?? null;
 

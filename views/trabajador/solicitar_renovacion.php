@@ -4,6 +4,22 @@ include __DIR__ . '/../layouts/header.php';
 
 $deuda = floatval($deuda_actual ?? 0);
 $dia = intval($dia_avance ?? 0);
+$tipo = $tarjeta['tipo'] ?? '';
+
+// Determines label and requirement based on card type
+if ($tipo === 'nueva') {
+    $titulo_renovacion = 'Renovación de Tarjeta Nueva (21 días)';
+    $desde_dia = 'Día 15';
+    $plazo_nuevo = '21 días (fijo)';
+} elseif ($tipo === 'antigua_diaria') {
+    $titulo_renovacion = 'Renovación de Tarjeta Diaria (30 días)';
+    $desde_dia = 'Día 25';
+    $plazo_nuevo = '30 días (fijo)';
+} else { // antigua_semanal
+    $titulo_renovacion = 'Renovación de Tarjeta Semanal';
+    $desde_dia = 'Cualquier día';
+    $plazo_nuevo = 'A especificar';
+}
 ?>
 
 <div class="dashboard-container">
@@ -20,14 +36,14 @@ $dia = intval($dia_avance ?? 0);
 
     <div class="card" style="margin-bottom: 20px;">
         <div class="card-header">
-            <h2>Resumen de Renovación</h2>
+            <h2><?php echo $titulo_renovacion; ?></h2>
         </div>
         <div class="card-body">
             <div class="info-grid">
                 <div><strong>Cliente:</strong> <?php echo htmlspecialchars($tarjeta['nombre'] ?? 'N/A'); ?></div>
                 <div><strong>Día actual:</strong> <?php echo $dia; ?></div>
-                <div><strong>Regla:</strong> Solo se puede renovar desde el día 15</div>
-                <div><strong>Nuevo plazo:</strong> 21 días (fijo)</div>
+                <div><strong>Desde:</strong> <?php echo $desde_dia; ?></div>
+                <div><strong>Nuevo plazo:</strong> <?php echo $plazo_nuevo; ?></div>
                 <div><strong>Deuda actual:</strong> $<?php echo number_format($deuda, 2); ?></div>
                 <div><strong>Neto a entregar:</strong> Nuevo total - deuda actual</div>
             </div>
@@ -138,8 +154,16 @@ $dia = intval($dia_avance ?? 0);
             <div class="form-group">
                 <label>Monto Total del Nuevo Préstamo</label>
                 <input type="number" name="total_prestamo_nuevo" id="total_prestamo_nuevo" min="0.01" step="0.01" value="" required>
-                <small class="text-muted">Total que pagará el cliente en 21 días (predeterminado: monto nuevo + interés; editable).</small>
+                <small class="text-muted" id="desc_total_prestamo">Total que pagará el cliente (predeterminado: monto nuevo + interés; editable).</small>
             </div>
+
+            <?php if ($tipo === 'antigua_semanal'): ?>
+            <div class="form-group">
+                <label>Plazo de la Nueva Tarjeta (días)</label>
+                <input type="number" name="dias_pagar_semanal" id="dias_pagar_semanal" min="1" step="1" value="" required>
+                <small class="text-muted">Cantidad de días que tendrá la nueva tarjeta semanal (ej: 49 para 7 semanas).</small>
+            </div>
+            <?php endif; ?>
 
             <div class="form-actions">
                 <button type="submit" class="btn btn-success">Enviar Solicitud a Admin</button>
