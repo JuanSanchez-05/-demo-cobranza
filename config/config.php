@@ -1829,27 +1829,22 @@ function crearSolicitudRenovacion($tarjeta_origen_id, $datos_nueva, $solicitante
         return ['ok' => false, 'codigo' => $motivo ?: 'no_permitido', 'mensaje' => 'No se puede solicitar renovación para esta tarjeta'];
     }
 
-    $monto_nuevo = floatval($datos_nueva['monto_nuevo'] ?? ($datos_nueva['prestamo'] ?? 0));
-    $interes = floatval($datos_nueva['interes'] ?? 0);
+    $monto_nuevo          = floatval($datos_nueva['monto_nuevo'] ?? 0);
+    $interes              = floatval($datos_nueva['interes'] ?? 0);
+    $total_prestamo_nuevo = floatval($datos_nueva['total_prestamo_nuevo'] ?? ($monto_nuevo + $interes));
 
     if ($monto_nuevo <= 0) {
-        return ['ok' => false, 'codigo' => 'monto_nuevo_invalido', 'mensaje' => 'El monto nuevo debe ser mayor a cero'];
+        return ['ok' => false, 'codigo' => 'prestamo_invalido', 'mensaje' => 'El monto nuevo debe ser mayor a cero'];
     }
 
-    if ($interes < 0) {
-        return ['ok' => false, 'codigo' => 'interes_invalido', 'mensaje' => 'El interés no puede ser negativo'];
+    if ($total_prestamo_nuevo <= 0) {
+        return ['ok' => false, 'codigo' => 'total_invalido', 'mensaje' => 'El monto total del nuevo préstamo debe ser mayor a cero'];
     }
 
     $deuda_actual = obtenerDeudaActualTarjeta($tarjeta_origen_id);
     $neto_entregar = $monto_nuevo - $deuda_actual;
-    $total_nuevo_prestamo = $monto_nuevo + $interes - $deuda_actual;
-
     if ($neto_entregar < 0) {
-        return ['ok' => false, 'codigo' => 'monto_nuevo_menor_deuda', 'mensaje' => 'El monto nuevo no puede ser menor a la deuda actual'];
-    }
-
-    if ($total_nuevo_prestamo <= 0) {
-        return ['ok' => false, 'codigo' => 'total_nuevo_invalido', 'mensaje' => 'El monto total del nuevo préstamo debe ser mayor a cero'];
+        return ['ok' => false, 'codigo' => 'prestamo_menor_deuda', 'mensaje' => 'El monto nuevo no puede ser menor a la deuda actual'];
     }
 
     $solicitudes = leerSolicitudesRenovacion();
@@ -1866,9 +1861,9 @@ function crearSolicitudRenovacion($tarjeta_origen_id, $datos_nueva, $solicitante
         'deuda_al_solicitar' => round($deuda_actual, 2),
         'monto_nuevo' => round($monto_nuevo, 2),
         'interes' => round($interes, 2),
-        'prestamo_nuevo' => round($monto_nuevo, 2),
+        'total_prestamo_nuevo' => round($total_prestamo_nuevo, 2),
+        'prestamo_nuevo' => round($total_prestamo_nuevo, 2), // compatibilidad legacy
         'neto_al_solicitar' => round($neto_entregar, 2),
-        'total_prestamo_nuevo_al_solicitar' => round($total_nuevo_prestamo, 2),
         'datos_nueva' => [
             'nombre' => trim($datos_nueva['nombre'] ?? ($tarjeta['nombre'] ?? '')),
             'fecha' => $datos_nueva['fecha'] ?? date('Y-m-d'),
@@ -1883,8 +1878,7 @@ function crearSolicitudRenovacion($tarjeta_origen_id, $datos_nueva, $solicitante
             'aval_direccion' => trim($datos_nueva['aval_direccion'] ?? ($tarjeta['aval_direccion'] ?? '')),
             'aval_colonia' => trim($datos_nueva['aval_colonia'] ?? ($tarjeta['aval_colonia'] ?? '')),
             'aval_telefono' => trim($datos_nueva['aval_telefono'] ?? ($tarjeta['aval_telefono'] ?? '')),
-            'monto_nuevo' => round($monto_nuevo, 2),
-            'interes' => round($interes, 2)
+            'prestamo' => round($total_prestamo_nuevo, 2)
         ]
     ];
 
@@ -1969,29 +1963,24 @@ function aprobarSolicitudRenovacion($solicitud_id, $admin_id) {
     }
 
     $deuda_actual = obtenerDeudaActualTarjeta($tarjeta_origen['id']);
-    $monto_nuevo = floatval($solicitud['monto_nuevo'] ?? ($solicitud['prestamo_nuevo'] ?? 0));
-    $interes = floatval($solicitud['interes'] ?? 0);
+    $total_prestamo_nuevo = floatval($solicitud['total_prestamo_nuevo'] ?? ($solicitud['prestamo_nuevo'] ?? 0));
+    $monto_nuevo = floatval($solicitud['monto_nuevo'] ?? $total_prestamo_nuevo);
     $neto_entregar = $monto_nuevo - $deuda_actual;
-    $total_nuevo_prestamo = $monto_nuevo + $interes - $deuda_actual;
 
     if ($deuda_actual <= 0.009) {
         return ['ok' => false, 'codigo' => 'sin_deuda', 'mensaje' => 'La tarjeta ya no tiene deuda pendiente'];
     }
 
-    if ($monto_nuevo <= 0 || $neto_entregar < 0) {
-        return ['ok' => false, 'codigo' => 'monto_nuevo_menor_deuda', 'mensaje' => 'El monto nuevo no alcanza para cubrir la deuda actual'];
-    }
-
-    if ($total_nuevo_prestamo <= 0) {
-        return ['ok' => false, 'codigo' => 'total_nuevo_invalido', 'mensaje' => 'El monto total del nuevo préstamo debe ser mayor a cero'];
+    if ($total_prestamo_nuevo <= 0 || $neto_entregar < 0) {
+        return ['ok' => false, 'codigo' => 'prestamo_menor_deuda', 'mensaje' => 'El préstamo solicitado no alcanza para cubrir la deuda actual'];
     }
 
     $nueva_data = $solicitud['datos_nueva'] ?? [];
     $nueva_data['tipo'] = 'nueva';
-    // La nueva tarjeta se crea con el total final: monto nuevo + interes - deuda anterior.
-    $nueva_data['prestamo'] = round($total_nuevo_prestamo, 2);
+    // La nueva tarjeta usa el monto total acordado (capital + interés).
+    $nueva_data['prestamo'] = round($total_prestamo_nuevo, 2);
     $nueva_data['dias_pagar'] = 21;
-    $nueva_data['pago'] = round($total_nuevo_prestamo / 21, 2);
+    $nueva_data['pago'] = round($total_prestamo_nuevo / 21, 2);
     $nueva_data['fecha'] = !empty($nueva_data['fecha']) ? $nueva_data['fecha'] : date('Y-m-d');
     $nueva_data['promotor_id'] = $tarjeta_origen['promotor_id'] ?? null;
 
@@ -2021,10 +2010,7 @@ function aprobarSolicitudRenovacion($solicitud_id, $admin_id) {
     $solicitudes[$indice]['admin_id'] = intval($admin_id);
     $solicitudes[$indice]['fecha_resolucion'] = date('Y-m-d H:i:s');
     $solicitudes[$indice]['deuda_al_aprobar'] = round($deuda_actual, 2);
-    $solicitudes[$indice]['monto_nuevo_al_aprobar'] = round($monto_nuevo, 2);
-    $solicitudes[$indice]['interes_al_aprobar'] = round($interes, 2);
     $solicitudes[$indice]['neto_al_aprobar'] = round($neto_entregar, 2);
-    $solicitudes[$indice]['total_prestamo_nuevo_al_aprobar'] = round($total_nuevo_prestamo, 2);
     $solicitudes[$indice]['tarjeta_nueva_id'] = intval($tarjeta_nueva_id);
 
     if (!guardarSolicitudesRenovacion($solicitudes)) {
@@ -2037,8 +2023,7 @@ function aprobarSolicitudRenovacion($solicitud_id, $admin_id) {
         'mensaje' => 'Renovación aprobada',
         'tarjeta_nueva_id' => intval($tarjeta_nueva_id),
         'deuda' => round($deuda_actual, 2),
-        'neto' => round($neto_entregar, 2),
-        'total_nuevo_prestamo' => round($total_nuevo_prestamo, 2)
+        'neto' => round($neto_entregar, 2)
     ];
 }
 
