@@ -2,7 +2,7 @@
 $titulo = 'Solicitar Renovación - Trabajador';
 include __DIR__ . '/../layouts/header.php';
 
-$prestamo_sugerido = max(0, floatval($deuda_actual ?? 0));
+$monto_nuevo_sugerido = max(0, floatval($deuda_actual ?? 0));
 $deuda = floatval($deuda_actual ?? 0);
 $dia = intval($dia_avance ?? 0);
 ?>
@@ -30,7 +30,7 @@ $dia = intval($dia_avance ?? 0);
                 <div><strong>Regla:</strong> Solo se puede renovar desde el día 15</div>
                 <div><strong>Nuevo plazo:</strong> 21 días (fijo)</div>
                 <div><strong>Deuda actual:</strong> $<?php echo number_format($deuda, 2); ?></div>
-                <div><strong>Neto a entregar:</strong> Nuevo total - deuda actual</div>
+                <div><strong>Cálculo final:</strong> (Monto nuevo + interés) - deuda actual</div>
             </div>
         </div>
     </div>
@@ -113,19 +113,33 @@ $dia = intval($dia_avance ?? 0);
             <h2>Monto de Renovación</h2>
             <div class="form-row">
                 <div class="form-group">
-                    <label>Nuevo Total del Préstamo</label>
-                    <input type="number" name="prestamo" id="prestamo" min="0.01" step="0.01" value="<?php echo number_format($prestamo_sugerido, 2, '.', ''); ?>" required>
-                    <small class="text-muted">Debe ser igual o mayor a la deuda actual.</small>
+                    <label>Monto Nuevo</label>
+                    <input type="number" name="monto_nuevo" id="monto_nuevo" min="0.01" step="0.01" value="<?php echo number_format($monto_nuevo_sugerido, 2, '.', ''); ?>" required>
+                    <small class="text-muted">Ejemplo: 10000</small>
                 </div>
+                <div class="form-group">
+                    <label>Interés</label>
+                    <input type="number" name="interes" id="interes" min="0" step="0.01" value="0.00" required>
+                    <small class="text-muted">Ejemplo: 1200</small>
+                </div>
+            </div>
+
+            <div class="form-row">
                 <div class="form-group">
                     <label>Deuda Actual</label>
                     <input type="text" value="$<?php echo number_format($deuda, 2); ?>" readonly>
                 </div>
+                <div class="form-group">
+                    <label>Monto Neto a Entregar</label>
+                    <input type="text" id="neto_entregar" readonly>
+                    <small class="text-muted">Monto nuevo - deuda actual</small>
+                </div>
             </div>
 
             <div class="form-group">
-                <label>Neto a Entregar (estimado)</label>
-                <input type="text" id="neto_entregar" readonly>
+                <label>Monto Total del Nuevo Préstamo</label>
+                <input type="text" id="total_nuevo_prestamo" readonly>
+                <small class="text-muted">(Monto nuevo + interés) - deuda actual. Este monto se usará en la nueva tarjeta.</small>
             </div>
 
             <div class="form-actions">
@@ -139,22 +153,36 @@ $dia = intval($dia_avance ?? 0);
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const deuda = <?php echo json_encode(round($deuda, 2)); ?>;
-    const prestamoInput = document.getElementById('prestamo');
+    const montoNuevoInput = document.getElementById('monto_nuevo');
+    const interesInput = document.getElementById('interes');
     const netoInput = document.getElementById('neto_entregar');
+    const totalInput = document.getElementById('total_nuevo_prestamo');
 
-    function recalcularNeto() {
-        const prestamo = parseFloat(prestamoInput.value) || 0;
-        const neto = prestamo - deuda;
+    function recalcularMontos() {
+        const montoNuevo = parseFloat(montoNuevoInput.value) || 0;
+        const interes = parseFloat(interesInput.value) || 0;
+        const neto = montoNuevo - deuda;
+        const totalNuevoPrestamo = (montoNuevo + interes) - deuda;
+
         netoInput.value = '$' + neto.toFixed(2);
+        totalInput.value = '$' + totalNuevoPrestamo.toFixed(2);
+
         if (neto < 0) {
             netoInput.style.color = '#dc3545';
         } else {
             netoInput.style.color = '#28a745';
         }
+
+        if (totalNuevoPrestamo <= 0) {
+            totalInput.style.color = '#dc3545';
+        } else {
+            totalInput.style.color = '#28a745';
+        }
     }
 
-    prestamoInput.addEventListener('input', recalcularNeto);
-    recalcularNeto();
+    montoNuevoInput.addEventListener('input', recalcularMontos);
+    interesInput.addEventListener('input', recalcularMontos);
+    recalcularMontos();
 });
 </script>
 

@@ -185,7 +185,8 @@ switch ($action) {
                 'aval_direccion' => trim($_POST['aval_direccion'] ?? ''),
                 'aval_colonia' => trim($_POST['aval_colonia'] ?? ''),
                 'aval_telefono' => trim($_POST['aval_telefono'] ?? ''),
-                'prestamo' => floatval($_POST['prestamo'] ?? 0),
+                'monto_nuevo' => floatval($_POST['monto_nuevo'] ?? 0),
+                'interes' => floatval($_POST['interes'] ?? 0),
             ];
 
             $resultado = crearSolicitudRenovacion($id, $datosRenovacion, $trabajador_id);

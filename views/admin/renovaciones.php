@@ -45,8 +45,10 @@ $estado_actual = $estado ?? 'pendiente';
                     <th>Cliente</th>
                     <th>Solicitante</th>
                     <th>Deuda</th>
-                    <th>Nuevo Total</th>
+                    <th>Monto Nuevo</th>
+                    <th>Interés</th>
                     <th>Neto a Entregar</th>
+                    <th>Total Nuevo Préstamo</th>
                     <th>Estado</th>
                     <th>Fecha</th>
                     <th>Acción</th>
@@ -59,8 +61,10 @@ $estado_actual = $estado ?? 'pendiente';
                     $solicitante = obtenerNombreUsuarioPorId($solicitud['solicitante_id'] ?? 0);
                     $estado_item = $solicitud['estado'] ?? 'pendiente';
                     $deuda = floatval($solicitud['deuda_al_solicitar'] ?? 0);
-                    $nuevo_total = floatval($solicitud['prestamo_nuevo'] ?? 0);
+                    $monto_nuevo = floatval($solicitud['monto_nuevo'] ?? ($solicitud['prestamo_nuevo'] ?? 0));
+                    $interes = floatval($solicitud['interes'] ?? 0);
                     $neto = floatval($solicitud['neto_al_solicitar'] ?? 0);
+                    $total_nuevo_prestamo = floatval($solicitud['total_prestamo_nuevo_al_solicitar'] ?? (($monto_nuevo + $interes) - $deuda));
                 ?>
                 <tr>
                     <td>#<?php echo intval($solicitud['id'] ?? 0); ?></td>
@@ -73,8 +77,10 @@ $estado_actual = $estado ?? 'pendiente';
                     <td><?php echo htmlspecialchars($cliente); ?></td>
                     <td><?php echo htmlspecialchars($solicitante); ?></td>
                     <td>$<?php echo number_format($deuda, 2); ?></td>
-                    <td>$<?php echo number_format($nuevo_total, 2); ?></td>
+                    <td>$<?php echo number_format($monto_nuevo, 2); ?></td>
+                    <td>$<?php echo number_format($interes, 2); ?></td>
                     <td>$<?php echo number_format($neto, 2); ?></td>
+                    <td>$<?php echo number_format($total_nuevo_prestamo, 2); ?></td>
                     <td>
                         <?php if ($estado_item === 'pendiente'): ?>
                             <span class="badge badge-warning">Pendiente</span>
@@ -108,7 +114,7 @@ $estado_actual = $estado ?? 'pendiente';
                 <?php endforeach; ?>
                 <?php if (empty($solicitudes_renovacion)): ?>
                 <tr>
-                    <td colspan="10" style="text-align:center;color:#888;">No hay solicitudes en este filtro.</td>
+                    <td colspan="12" style="text-align:center;color:#888;">No hay solicitudes en este filtro.</td>
                 </tr>
                 <?php endif; ?>
             </tbody>
