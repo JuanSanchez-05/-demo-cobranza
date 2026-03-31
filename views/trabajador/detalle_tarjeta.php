@@ -12,6 +12,15 @@ if (isset($tarjeta['pagos'])) {
 }
 $pendiente = $total - $cobrado;
 $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
+
+$dia_avance_renovacion = obtenerDiaAvanceTarjeta($tarjeta['id']);
+$deuda_actual_renovacion = obtenerDeudaActualTarjeta($tarjeta['id']);
+$solicitud_pendiente_renovacion = obtenerSolicitudRenovacionPendientePorTarjeta($tarjeta['id']);
+$es_tarjeta_nueva_activa = (($tarjeta['tipo'] ?? '') === 'nueva') && (($tarjeta['estado'] ?? 'activo') === 'activo');
+$puede_solicitar_renovacion = $es_tarjeta_nueva_activa
+    && $dia_avance_renovacion >= 15
+    && !$solicitud_pendiente_renovacion
+    && $deuda_actual_renovacion > 0.009;
 ?>
 
 <div class="dashboard-container">
@@ -27,6 +36,8 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
             <div class="alert alert-success">✓ Pago registrado exitosamente</div>
         <?php elseif ($_GET['mensaje'] === 'dia_extra_agregado'): ?>
             <div class="alert alert-success">✓ Se agregó un día extra para seguir cobrando el saldo pendiente.</div>
+        <?php elseif ($_GET['mensaje'] === 'renovacion_solicitada'): ?>
+            <div class="alert alert-success">✓ Solicitud de renovación enviada. Queda pendiente de autorización del administrador.</div>
         <?php elseif ($_GET['mensaje'] === 'error_pago'): ?>
             <div class="alert alert-warning">⚠ Este pago ya fue registrado anteriormente</div>
         <?php elseif ($_GET['mensaje'] === 'error_dia'): ?>
@@ -47,7 +58,39 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
             <div class="alert alert-danger">✗ El monto ingresado excede lo permitido para este día. Solo puedes cobrar el monto del día más atrasos anteriores, sin pasar la deuda total.</div>
         <?php elseif ($_GET['error'] === 'error_dia_extra'): ?>
             <div class="alert alert-danger">✗ No fue posible agregar un día extra. Verifica que aún exista saldo pendiente.</div>
+        <?php elseif ($_GET['error'] === 'renovacion_no_permitida'): ?>
+            <div class="alert alert-danger">✗ Esta tarjeta aún no cumple las condiciones para solicitar renovación.</div>
         <?php endif; ?>
+    <?php endif; ?>
+
+    <?php if ($es_tarjeta_nueva_activa): ?>
+    <div class="card" style="margin-bottom: 16px;">
+        <div class="card-header">
+            <h2>Renovación de Tarjeta Nueva (21 días)</h2>
+        </div>
+        <div class="card-body">
+            <div class="info-grid" style="margin-bottom: 12px;">
+                <div><strong>Día actual:</strong> <?php echo intval($dia_avance_renovacion); ?></div>
+                <div><strong>Desde día:</strong> 15</div>
+                <div><strong>Deuda actual:</strong> $<?php echo number_format($deuda_actual_renovacion, 2); ?></div>
+                <div><strong>Nuevo plazo:</strong> 21 días</div>
+            </div>
+
+            <?php if ($solicitud_pendiente_renovacion): ?>
+                <div class="alert alert-warning" style="margin: 0;">
+                    Ya existe una solicitud pendiente de autorización (Solicitud #<?php echo intval($solicitud_pendiente_renovacion['id'] ?? 0); ?>).
+                </div>
+            <?php elseif ($puede_solicitar_renovacion): ?>
+                <a href="<?php echo BASE_URL; ?>controllers/TrabajadorController.php?action=solicitar_renovacion&id=<?php echo intval($tarjeta['id']); ?>" class="btn btn-primary">
+                    Solicitar renovación
+                </a>
+            <?php else: ?>
+                <div class="alert alert-info" style="margin: 0;">
+                    La renovación se habilita a partir del día 15 y solo si la tarjeta aún tiene saldo pendiente.
+                </div>
+            <?php endif; ?>
+        </div>
+    </div>
     <?php endif; ?>
 
     <!-- Resumen -->

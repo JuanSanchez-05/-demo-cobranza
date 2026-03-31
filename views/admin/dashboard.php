@@ -78,6 +78,7 @@ include __DIR__ . '/../layouts/header.php';
         <div class="action-buttons">
             <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=carteras" class="btn btn-primary">Ver Todas las Carteras</a>
             <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=tarjetas" class="btn btn-info">Ver Todas las Tarjetas</a>
+            <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=renovaciones&estado=pendiente" class="btn btn-warning">Renovaciones Pendientes (<?php echo intval($renovaciones_pendientes ?? 0); ?>)</a>
             <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=alta_tarjeta&tipo=semanal" class="btn btn-success">+ Tarjeta Semanal</a>
             <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=alta_tarjeta&tipo=diaria" class="btn btn-success">+ Tarjeta Diaria</a>
             <a href="<?php echo BASE_URL; ?>controllers/AdminController.php?action=alta_tarjeta&tipo=nueva" class="btn btn-success">+ Tarjeta Nueva</a>

@@ -1694,3 +1694,308 @@ function verificarTarjetaCompletada($tarjeta_id) {
     return false;
 }
 
+// ============================================
+// RENOVACIONES (SIN CAMBIOS EN BD)
+// ============================================
+
+function obtenerRutaSolicitudesRenovacion() {
+    $dir = ROOT_PATH . 'storage';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0775, true);
+    }
+
+    $ruta = $dir . '/solicitudes_renovacion.json';
+    if (!file_exists($ruta)) {
+        @file_put_contents($ruta, json_encode([], JSON_PRETTY_PRINT));
+    }
+
+    return $ruta;
+}
+
+function leerSolicitudesRenovacion() {
+    $ruta = obtenerRutaSolicitudesRenovacion();
+    $contenido = @file_get_contents($ruta);
+    if ($contenido === false || trim($contenido) === '') {
+        return [];
+    }
+
+    $datos = json_decode($contenido, true);
+    return is_array($datos) ? $datos : [];
+}
+
+function guardarSolicitudesRenovacion($solicitudes) {
+    $ruta = obtenerRutaSolicitudesRenovacion();
+    $json = json_encode(array_values($solicitudes), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    return @file_put_contents($ruta, $json, LOCK_EX) !== false;
+}
+
+function obtenerDiaAvanceTarjeta($tarjeta_id) {
+    $db = getDB();
+    $stmt = $db->prepare("SELECT COALESCE(MAX(dia), 0) FROM pagos WHERE tarjeta_id = ? AND (fecha_registro IS NOT NULL OR pago > 0)");
+    $stmt->execute([$tarjeta_id]);
+    return intval($stmt->fetchColumn() ?: 0);
+}
+
+function obtenerDeudaActualTarjeta($tarjeta_id) {
+    $db = getDB();
+    $stmt = $db->prepare("SELECT total_prestamo FROM tarjetas WHERE id = ? LIMIT 1");
+    $stmt->execute([$tarjeta_id]);
+    $total = floatval($stmt->fetchColumn() ?: 0);
+
+    $stmt = $db->prepare("SELECT COALESCE(SUM(pago), 0) FROM pagos WHERE tarjeta_id = ?");
+    $stmt->execute([$tarjeta_id]);
+    $pagado = floatval($stmt->fetchColumn() ?: 0);
+
+    return max(0, $total - $pagado);
+}
+
+function obtenerSolicitudRenovacionPendientePorTarjeta($tarjeta_id) {
+    $solicitudes = leerSolicitudesRenovacion();
+    foreach ($solicitudes as $solicitud) {
+        if (intval($solicitud['tarjeta_origen_id'] ?? 0) === intval($tarjeta_id)
+            && ($solicitud['estado'] ?? '') === 'pendiente') {
+            return $solicitud;
+        }
+    }
+    return null;
+}
+
+function puedeSolicitarRenovacionTarjeta($tarjeta, &$motivo = null) {
+    if (!$tarjeta) {
+        $motivo = 'tarjeta_no_encontrada';
+        return false;
+    }
+
+    if (($tarjeta['estado'] ?? 'activo') !== 'activo') {
+        $motivo = 'tarjeta_inactiva';
+        return false;
+    }
+
+    if (($tarjeta['tipo'] ?? '') !== 'nueva') {
+        $motivo = 'tipo_no_permitido';
+        return false;
+    }
+
+    if (obtenerDiaAvanceTarjeta($tarjeta['id']) < 15) {
+        $motivo = 'dia_menor_15';
+        return false;
+    }
+
+    if (obtenerDeudaActualTarjeta($tarjeta['id']) <= 0.009) {
+        $motivo = 'sin_deuda';
+        return false;
+    }
+
+    if (obtenerSolicitudRenovacionPendientePorTarjeta($tarjeta['id'])) {
+        $motivo = 'ya_pendiente';
+        return false;
+    }
+
+    return true;
+}
+
+function obtenerSolicitudesRenovacion($estado = null) {
+    $solicitudes = leerSolicitudesRenovacion();
+    if ($estado !== null) {
+        $solicitudes = array_values(array_filter($solicitudes, function ($s) use ($estado) {
+            return ($s['estado'] ?? '') === $estado;
+        }));
+    }
+
+    usort($solicitudes, function ($a, $b) {
+        return strcmp($b['fecha_solicitud'] ?? '', $a['fecha_solicitud'] ?? '');
+    });
+
+    return $solicitudes;
+}
+
+function contarSolicitudesRenovacionPendientes() {
+    return count(obtenerSolicitudesRenovacion('pendiente'));
+}
+
+function obtenerSolicitudRenovacionPorId($id) {
+    foreach (leerSolicitudesRenovacion() as $solicitud) {
+        if (intval($solicitud['id'] ?? 0) === intval($id)) {
+            return $solicitud;
+        }
+    }
+    return null;
+}
+
+function crearSolicitudRenovacion($tarjeta_origen_id, $datos_nueva, $solicitante_id) {
+    $tarjeta = obtenerTarjetaPorId($tarjeta_origen_id);
+    $motivo = null;
+    if (!puedeSolicitarRenovacionTarjeta($tarjeta, $motivo)) {
+        return ['ok' => false, 'codigo' => $motivo ?: 'no_permitido', 'mensaje' => 'No se puede solicitar renovación para esta tarjeta'];
+    }
+
+    $prestamo_nuevo = floatval($datos_nueva['prestamo'] ?? 0);
+    if ($prestamo_nuevo <= 0) {
+        return ['ok' => false, 'codigo' => 'prestamo_invalido', 'mensaje' => 'El total del préstamo nuevo debe ser mayor a cero'];
+    }
+
+    $deuda_actual = obtenerDeudaActualTarjeta($tarjeta_origen_id);
+    $neto_entregar = $prestamo_nuevo - $deuda_actual;
+    if ($neto_entregar < 0) {
+        return ['ok' => false, 'codigo' => 'prestamo_menor_deuda', 'mensaje' => 'El nuevo préstamo no puede ser menor a la deuda actual'];
+    }
+
+    $solicitudes = leerSolicitudesRenovacion();
+    $ids = array_column($solicitudes, 'id');
+    $nuevo_id = empty($ids) ? 1 : (max(array_map('intval', $ids)) + 1);
+
+    $registro = [
+        'id' => $nuevo_id,
+        'tarjeta_origen_id' => intval($tarjeta_origen_id),
+        'cartera_id' => intval($tarjeta['cartera_id']),
+        'solicitante_id' => intval($solicitante_id),
+        'estado' => 'pendiente',
+        'fecha_solicitud' => date('Y-m-d H:i:s'),
+        'deuda_al_solicitar' => round($deuda_actual, 2),
+        'prestamo_nuevo' => round($prestamo_nuevo, 2),
+        'neto_al_solicitar' => round($neto_entregar, 2),
+        'datos_nueva' => [
+            'nombre' => trim($datos_nueva['nombre'] ?? ($tarjeta['nombre'] ?? '')),
+            'fecha' => $datos_nueva['fecha'] ?? date('Y-m-d'),
+            'hora_cobro' => trim($datos_nueva['hora_cobro'] ?? ($tarjeta['hora_cobro'] ?? '')),
+            'telefono' => trim($datos_nueva['telefono'] ?? ($tarjeta['telefono'] ?? '')),
+            'direccion' => trim($datos_nueva['direccion'] ?? ($tarjeta['direccion'] ?? '')),
+            'colonia' => trim($datos_nueva['colonia'] ?? ($tarjeta['colonia'] ?? '')),
+            'lugar' => trim($datos_nueva['lugar'] ?? ($tarjeta['lugar'] ?? '')),
+            'giro' => trim($datos_nueva['giro'] ?? ($tarjeta['giro'] ?? '')),
+            'direccion_cobranza' => trim($datos_nueva['direccion_cobranza'] ?? ($tarjeta['direccion_cobranza'] ?? '')),
+            'aval_nombre' => trim($datos_nueva['aval_nombre'] ?? ($tarjeta['aval_nombre'] ?? '')),
+            'aval_direccion' => trim($datos_nueva['aval_direccion'] ?? ($tarjeta['aval_direccion'] ?? '')),
+            'aval_colonia' => trim($datos_nueva['aval_colonia'] ?? ($tarjeta['aval_colonia'] ?? '')),
+            'aval_telefono' => trim($datos_nueva['aval_telefono'] ?? ($tarjeta['aval_telefono'] ?? '')),
+            'prestamo' => round($prestamo_nuevo, 2)
+        ]
+    ];
+
+    $solicitudes[] = $registro;
+    if (!guardarSolicitudesRenovacion($solicitudes)) {
+        return ['ok' => false, 'codigo' => 'error_guardado', 'mensaje' => 'No se pudo guardar la solicitud de renovación'];
+    }
+
+    return ['ok' => true, 'codigo' => 'ok', 'mensaje' => 'Solicitud registrada', 'solicitud' => $registro];
+}
+
+function rechazarSolicitudRenovacion($solicitud_id, $admin_id, $motivo_rechazo = '') {
+    $solicitudes = leerSolicitudesRenovacion();
+    $actualizada = false;
+
+    foreach ($solicitudes as &$solicitud) {
+        if (intval($solicitud['id'] ?? 0) !== intval($solicitud_id)) {
+            continue;
+        }
+
+        if (($solicitud['estado'] ?? '') !== 'pendiente') {
+            return ['ok' => false, 'codigo' => 'estado_invalido', 'mensaje' => 'La solicitud ya fue atendida'];
+        }
+
+        $solicitud['estado'] = 'rechazada';
+        $solicitud['admin_id'] = intval($admin_id);
+        $solicitud['fecha_resolucion'] = date('Y-m-d H:i:s');
+        $solicitud['motivo_rechazo'] = trim($motivo_rechazo);
+        $actualizada = true;
+        break;
+    }
+    unset($solicitud);
+
+    if (!$actualizada) {
+        return ['ok' => false, 'codigo' => 'no_encontrada', 'mensaje' => 'Solicitud no encontrada'];
+    }
+
+    if (!guardarSolicitudesRenovacion($solicitudes)) {
+        return ['ok' => false, 'codigo' => 'error_guardado', 'mensaje' => 'No se pudo actualizar la solicitud'];
+    }
+
+    return ['ok' => true, 'codigo' => 'ok', 'mensaje' => 'Solicitud rechazada'];
+}
+
+function aprobarSolicitudRenovacion($solicitud_id, $admin_id) {
+    $solicitudes = leerSolicitudesRenovacion();
+    $indice = -1;
+    $solicitud = null;
+
+    foreach ($solicitudes as $i => $item) {
+        if (intval($item['id'] ?? 0) === intval($solicitud_id)) {
+            $indice = $i;
+            $solicitud = $item;
+            break;
+        }
+    }
+
+    if ($indice < 0 || !$solicitud) {
+        return ['ok' => false, 'codigo' => 'no_encontrada', 'mensaje' => 'Solicitud no encontrada'];
+    }
+
+    if (($solicitud['estado'] ?? '') !== 'pendiente') {
+        return ['ok' => false, 'codigo' => 'estado_invalido', 'mensaje' => 'La solicitud ya fue atendida'];
+    }
+
+    $tarjeta_origen = obtenerTarjetaPorId(intval($solicitud['tarjeta_origen_id'] ?? 0));
+    $motivo = null;
+    if (!puedeSolicitarRenovacionTarjeta($tarjeta_origen, $motivo)) {
+        return ['ok' => false, 'codigo' => $motivo ?: 'no_permitido', 'mensaje' => 'La tarjeta de origen ya no cumple las condiciones para renovación'];
+    }
+
+    $deuda_actual = obtenerDeudaActualTarjeta($tarjeta_origen['id']);
+    $prestamo_nuevo = floatval($solicitud['prestamo_nuevo'] ?? 0);
+    $neto_entregar = $prestamo_nuevo - $deuda_actual;
+
+    if ($prestamo_nuevo <= 0 || $neto_entregar < 0) {
+        return ['ok' => false, 'codigo' => 'prestamo_menor_deuda', 'mensaje' => 'El préstamo solicitado no alcanza para cubrir la deuda actual'];
+    }
+
+    $nueva_data = $solicitud['datos_nueva'] ?? [];
+    $nueva_data['tipo'] = 'nueva';
+    $nueva_data['prestamo'] = $prestamo_nuevo;
+    $nueva_data['dias_pagar'] = 21;
+    $nueva_data['pago'] = round($prestamo_nuevo / 21, 2);
+    $nueva_data['fecha'] = !empty($nueva_data['fecha']) ? $nueva_data['fecha'] : date('Y-m-d');
+    $nueva_data['promotor_id'] = $tarjeta_origen['promotor_id'] ?? null;
+
+    $db = getDB();
+    try {
+        $db->beginTransaction();
+
+        $tarjeta_nueva_id = agregarTarjeta($nueva_data, $tarjeta_origen['cartera_id']);
+        if (!$tarjeta_nueva_id) {
+            throw new Exception('No se pudo crear la tarjeta nueva');
+        }
+
+        $okCompletar = marcarTarjetaCompletada($tarjeta_origen['id']);
+        if (!$okCompletar) {
+            throw new Exception('No se pudo completar la tarjeta anterior');
+        }
+
+        $db->commit();
+    } catch (Exception $e) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        return ['ok' => false, 'codigo' => 'error_aprobacion', 'mensaje' => $e->getMessage()];
+    }
+
+    $solicitudes[$indice]['estado'] = 'aprobada';
+    $solicitudes[$indice]['admin_id'] = intval($admin_id);
+    $solicitudes[$indice]['fecha_resolucion'] = date('Y-m-d H:i:s');
+    $solicitudes[$indice]['deuda_al_aprobar'] = round($deuda_actual, 2);
+    $solicitudes[$indice]['neto_al_aprobar'] = round($neto_entregar, 2);
+    $solicitudes[$indice]['tarjeta_nueva_id'] = intval($tarjeta_nueva_id);
+
+    if (!guardarSolicitudesRenovacion($solicitudes)) {
+        return ['ok' => false, 'codigo' => 'error_guardado', 'mensaje' => 'La renovación fue aprobada, pero no se pudo actualizar el historial'];
+    }
+
+    return [
+        'ok' => true,
+        'codigo' => 'ok',
+        'mensaje' => 'Renovación aprobada',
+        'tarjeta_nueva_id' => intval($tarjeta_nueva_id),
+        'deuda' => round($deuda_actual, 2),
+        'neto' => round($neto_entregar, 2)
+    ];
+}
+

@@ -137,6 +137,70 @@ switch ($action) {
         
         include __DIR__ . '/../views/trabajador/detalle_tarjeta.php';
         break;
+
+    case 'solicitar_renovacion':
+        $id = $_GET['id'] ?? 0;
+        $tarjeta = obtenerTarjetaPorId($id);
+
+        if (!$tarjeta) {
+            header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=carteras&error=tarjeta_no_encontrada');
+            exit;
+        }
+
+        // Verificar que la tarjeta pertenece a la cartera del trabajador
+        $cartera_trabajador = obtenerCarteraPorTrabajador($trabajador_id);
+        $tarjeta_encontrada = false;
+        if ($cartera_trabajador && isset($cartera_trabajador['tarjetas'])) {
+            foreach ($cartera_trabajador['tarjetas'] as $t) {
+                if ($t['id'] == $id) {
+                    $tarjeta_encontrada = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$tarjeta_encontrada) {
+            header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=carteras&error=acceso_denegado');
+            exit;
+        }
+
+        $motivo_no_permitido = null;
+        if (!puedeSolicitarRenovacionTarjeta($tarjeta, $motivo_no_permitido)) {
+            header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&error=renovacion_no_permitida');
+            exit;
+        }
+
+        if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+            $datosRenovacion = [
+                'nombre' => trim($_POST['nombre'] ?? ''),
+                'fecha' => $_POST['fecha'] ?? date('Y-m-d'),
+                'hora_cobro' => trim($_POST['hora_cobro'] ?? ''),
+                'telefono' => trim($_POST['telefono'] ?? ''),
+                'direccion' => trim($_POST['direccion'] ?? ''),
+                'colonia' => trim($_POST['colonia'] ?? ''),
+                'lugar' => trim($_POST['lugar'] ?? ''),
+                'giro' => trim($_POST['giro'] ?? ''),
+                'direccion_cobranza' => trim($_POST['direccion_cobranza'] ?? ''),
+                'aval_nombre' => trim($_POST['aval_nombre'] ?? ''),
+                'aval_direccion' => trim($_POST['aval_direccion'] ?? ''),
+                'aval_colonia' => trim($_POST['aval_colonia'] ?? ''),
+                'aval_telefono' => trim($_POST['aval_telefono'] ?? ''),
+                'prestamo' => floatval($_POST['prestamo'] ?? 0),
+            ];
+
+            $resultado = crearSolicitudRenovacion($id, $datosRenovacion, $trabajador_id);
+            if ($resultado['ok']) {
+                header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=detalle_tarjeta&id=' . $id . '&mensaje=renovacion_solicitada');
+            } else {
+                header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=solicitar_renovacion&id=' . $id . '&error=' . urlencode($resultado['codigo'] ?? 'error_renovacion'));
+            }
+            exit;
+        }
+
+        $deuda_actual = obtenerDeudaActualTarjeta($id);
+        $dia_avance = obtenerDiaAvanceTarjeta($id);
+        include __DIR__ . '/../views/trabajador/solicitar_renovacion.php';
+        break;
     
     case 'registrar_cobros':
         // Vista para registrar cobros del día

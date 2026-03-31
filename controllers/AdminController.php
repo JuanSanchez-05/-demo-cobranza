@@ -9,6 +9,7 @@ switch ($action) {
         $stats = calcularEstadisticas();
         $todas_carteras = obtenerTodasLasCarteras();
         $todas_tarjetas = obtenerTodasLasTarjetas();
+        $renovaciones_pendientes = contarSolicitudesRenovacionPendientes();
         $cobradores_detalle = [];
         foreach (obtenerTodosTrabajadores() as $trabajador) {
             if (!(bool)($trabajador['activo'] ?? true)) {
@@ -26,6 +27,50 @@ switch ($action) {
             ];
         }
         include __DIR__ . '/../views/admin/dashboard.php';
+        break;
+
+    case 'renovaciones':
+        $filtro_estado = $_GET['estado'] ?? 'pendiente';
+        $estado = in_array($filtro_estado, ['pendiente', 'aprobada', 'rechazada', 'todas'], true)
+            ? $filtro_estado
+            : 'pendiente';
+        $solicitudes_renovacion = ($estado === 'todas')
+            ? obtenerSolicitudesRenovacion(null)
+            : obtenerSolicitudesRenovacion($estado);
+        include __DIR__ . '/../views/admin/renovaciones.php';
+        break;
+
+    case 'aprobar_renovacion':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . BASE_URL . 'controllers/AdminController.php?action=renovaciones');
+            exit;
+        }
+
+        $solicitud_id = intval($_POST['solicitud_id'] ?? 0);
+        $resultado = aprobarSolicitudRenovacion($solicitud_id, $_SESSION['usuario_id']);
+        if ($resultado['ok']) {
+            header('Location: ' . BASE_URL . 'controllers/AdminController.php?action=renovaciones&mensaje=renovacion_aprobada');
+        } else {
+            header('Location: ' . BASE_URL . 'controllers/AdminController.php?action=renovaciones&error=' . urlencode($resultado['codigo'] ?? 'error_aprobacion'));
+        }
+        exit;
+        break;
+
+    case 'rechazar_renovacion':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            header('Location: ' . BASE_URL . 'controllers/AdminController.php?action=renovaciones');
+            exit;
+        }
+
+        $solicitud_id = intval($_POST['solicitud_id'] ?? 0);
+        $motivo_rechazo = trim($_POST['motivo_rechazo'] ?? '');
+        $resultado = rechazarSolicitudRenovacion($solicitud_id, $_SESSION['usuario_id'], $motivo_rechazo);
+        if ($resultado['ok']) {
+            header('Location: ' . BASE_URL . 'controllers/AdminController.php?action=renovaciones&mensaje=renovacion_rechazada');
+        } else {
+            header('Location: ' . BASE_URL . 'controllers/AdminController.php?action=renovaciones&error=' . urlencode($resultado['codigo'] ?? 'error_rechazo'));
+        }
+        exit;
         break;
         
     case 'carteras':
