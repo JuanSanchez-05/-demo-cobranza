@@ -74,9 +74,9 @@ $puede_solicitar_renovacion = $es_tarjeta_renovable_activa
         <div class="card-body">
             <div class="info-grid" style="margin-bottom: 12px;">
                 <div><strong>Día actual:</strong> <?php echo intval($dia_avance_renovacion); ?></div>
-                <div><strong>Desde día:</strong> <?php echo intval($dia_minimo_renovacion); ?></div>
+                <div><strong>Desde semana/día:</strong> <?php echo $dia_minimo_renovacion > 0 ? $dia_minimo_renovacion : 'Libre (cualquier semana)'; ?></div>
                 <div><strong>Deuda actual:</strong> $<?php echo number_format($deuda_actual_renovacion, 2); ?></div>
-                <div><strong>Nuevo plazo:</strong> <?php echo intval($nuevo_plazo_renovacion); ?> días</div>
+                <div><strong>Nuevo plazo:</strong> <?php echo $nuevo_plazo_renovacion > 0 ? $nuevo_plazo_renovacion . ' días' : 'Libre (define semanas)'; ?></div>
             </div>
 
             <?php if ($solicitud_pendiente_renovacion): ?>
@@ -89,7 +89,11 @@ $puede_solicitar_renovacion = $es_tarjeta_renovable_activa
                 </a>
             <?php else: ?>
                 <div class="alert alert-info" style="margin: 0;">
-                    La renovación se habilita a partir del día <?php echo intval($dia_minimo_renovacion); ?> y solo si la tarjeta aún tiene saldo pendiente.
+                    <?php if ($dia_minimo_renovacion > 0): ?>
+                        La renovación se habilita a partir del día <?php echo intval($dia_minimo_renovacion); ?> y solo si la tarjeta aún tiene saldo pendiente.
+                    <?php else: ?>
+                        La renovación está disponible en cualquier momento mientras la tarjeta tenga saldo pendiente.
+                    <?php endif; ?>
                 </div>
             <?php endif; ?>
         </div>

@@ -29,8 +29,8 @@ $nuevo_plazo_renovacion = intval($config_renovacion['nuevo_plazo'] ?? 0);
             <div class="info-grid">
                 <div><strong>Cliente:</strong> <?php echo htmlspecialchars($tarjeta['nombre'] ?? 'N/A'); ?></div>
                 <div><strong>Día actual:</strong> <?php echo $dia; ?></div>
-                <div><strong>Regla:</strong> Solo se puede renovar desde el día <?php echo $dia_minimo_renovacion; ?></div>
-                <div><strong>Nuevo plazo:</strong> <?php echo $nuevo_plazo_renovacion; ?> días (fijo)</div>
+                <div><strong>Regla:</strong> <?php echo $dia_minimo_renovacion > 0 ? 'Solo se puede renovar desde el día ' . $dia_minimo_renovacion : 'Renovación libre (cualquier semana)'; ?></div>
+                <div><strong>Nuevo plazo:</strong> <?php echo $nuevo_plazo_renovacion > 0 ? $nuevo_plazo_renovacion . ' días (fijo)' : 'Libre (define las semanas abajo)'; ?></div>
                 <div><strong>Deuda actual:</strong> $<?php echo number_format($deuda, 2); ?></div>
                 <div><strong>Neto a entregar:</strong> Nuevo total - deuda actual</div>
             </div>
@@ -158,7 +158,7 @@ $nuevo_plazo_renovacion = intval($config_renovacion['nuevo_plazo'] ?? 0);
             <div class="form-group">
                 <label>Monto Total del Nuevo Préstamo</label>
                 <input type="number" name="total_prestamo_nuevo" id="total_prestamo_nuevo" min="0.01" step="0.01" value="" required>
-                <small class="text-muted">Total que pagará el cliente en <?php echo $nuevo_plazo_renovacion; ?> días (predeterminado: monto nuevo + interés; editable).</small>
+                <small class="text-muted">Total que pagará el cliente <?php echo $nuevo_plazo_renovacion > 0 ? 'en ' . $nuevo_plazo_renovacion . ' días' : 'en las semanas definidas'; ?> (predeterminado: monto nuevo + interés; editable).</small>
             </div>
 
             <?php if (($tarjeta['tipo'] ?? '') === 'antigua_semanal'): ?>
