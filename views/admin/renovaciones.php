@@ -95,7 +95,7 @@ $estado_actual = $estado ?? 'pendiente';
                         <?php if ($estado_item === 'pendiente'): ?>
                             <form method="POST" action="<?php echo BASE_URL; ?>controllers/AdminController.php?action=aprobar_renovacion" style="display:inline-block; margin-bottom: 6px;">
                                 <input type="hidden" name="solicitud_id" value="<?php echo intval($solicitud['id']); ?>">
-                                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('¿Aprobar renovación? Esto creará una tarjeta nueva a 21 días y completará la anterior.');">
+                                <button type="submit" class="btn btn-sm btn-success" onclick="return confirm('¿Aprobar renovación? Esto creará la tarjeta renovada y completará la anterior.');">
                                     Aprobar
                                 </button>
                             </form>

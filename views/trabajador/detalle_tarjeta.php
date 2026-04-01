@@ -16,19 +16,14 @@ $porcentaje = $total > 0 ? ($cobrado / $total) * 100 : 0;
 $dia_avance_renovacion = obtenerDiaAvanceTarjeta($tarjeta['id']);
 $deuda_actual_renovacion = obtenerDeudaActualTarjeta($tarjeta['id']);
 $solicitud_pendiente_renovacion = obtenerSolicitudRenovacionPendientePorTarjeta($tarjeta['id']);
-$tipo_tarjeta = $tarjeta['tipo'] ?? '';
-$tarjeta_activa = (($tarjeta['estado'] ?? 'activo') === 'activo');
-$puede_solicitar_renovacion_actual = $tarjeta_activa
+$renovacion_config = obtenerConfiguracionRenovacionPorTipo($tarjeta['tipo'] ?? '');
+$es_tarjeta_renovable_activa = (($tarjeta['estado'] ?? 'activo') === 'activo') && !empty($renovacion_config['permitido']);
+$dia_minimo_renovacion = intval($renovacion_config['dia_minimo'] ?? 0);
+$nuevo_plazo_renovacion = intval($renovacion_config['nuevo_plazo'] ?? 0);
+$puede_solicitar_renovacion = $es_tarjeta_renovable_activa
+    && $dia_avance_renovacion >= $dia_minimo_renovacion
     && !$solicitud_pendiente_renovacion
-    && $deuda_actual_renovacion > 0.009
-    && puedeSolicitarRenovacionTarjeta($tarjeta);
-
-$es_tarjeta_nueva = $tipo_tarjeta === 'nueva';
-$es_tarjeta_diaria = $tipo_tarjeta === 'antigua_diaria';
-$es_tarjeta_semanal = $tipo_tarjeta === 'antigua_semanal';
-$cumple_dia_nueva = $dia_avance_renovacion >= 15;
-$cumple_dia_diaria = $dia_avance_renovacion >= 25;
-$cumple_dia_semanal = true; // siempre
+    && $deuda_actual_renovacion > 0.009;
 ?>
 
 <div class="dashboard-container">
@@ -71,90 +66,30 @@ $cumple_dia_semanal = true; // siempre
         <?php endif; ?>
     <?php endif; ?>
 
-    <?php if ($es_tarjeta_nueva && $tarjeta_activa): ?>
+    <?php if ($es_tarjeta_renovable_activa): ?>
     <div class="card" style="margin-bottom: 16px;">
         <div class="card-header">
-            <h2>Renovación de Tarjeta Nueva (21 días)</h2>
+            <h2>Renovación de <?php echo htmlspecialchars($renovacion_config['descripcion'] ?? 'Tarjeta'); ?></h2>
         </div>
         <div class="card-body">
             <div class="info-grid" style="margin-bottom: 12px;">
                 <div><strong>Día actual:</strong> <?php echo intval($dia_avance_renovacion); ?></div>
-                <div><strong>Desde día:</strong> 15</div>
+                <div><strong>Desde día:</strong> <?php echo intval($dia_minimo_renovacion); ?></div>
                 <div><strong>Deuda actual:</strong> $<?php echo number_format($deuda_actual_renovacion, 2); ?></div>
-                <div><strong>Nuevo plazo:</strong> 21 días</div>
+                <div><strong>Nuevo plazo:</strong> <?php echo intval($nuevo_plazo_renovacion); ?> días</div>
             </div>
 
             <?php if ($solicitud_pendiente_renovacion): ?>
                 <div class="alert alert-warning" style="margin: 0;">
                     Ya existe una solicitud pendiente de autorización (Solicitud #<?php echo intval($solicitud_pendiente_renovacion['id'] ?? 0); ?>).
                 </div>
-            <?php elseif ($puede_solicitar_renovacion_actual): ?>
+            <?php elseif ($puede_solicitar_renovacion): ?>
                 <a href="<?php echo BASE_URL; ?>controllers/TrabajadorController.php?action=solicitar_renovacion&id=<?php echo intval($tarjeta['id']); ?>" class="btn btn-primary">
                     Solicitar renovación
                 </a>
             <?php else: ?>
                 <div class="alert alert-info" style="margin: 0;">
-                    La renovación se habilita a partir del día 15 y solo si la tarjeta aún tiene saldo pendiente.
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <?php if ($es_tarjeta_diaria && $tarjeta_activa): ?>
-    <div class="card" style="margin-bottom: 16px;">
-        <div class="card-header">
-            <h2>Renovación de Tarjeta Diaria (30 días)</h2>
-        </div>
-        <div class="card-body">
-            <div class="info-grid" style="margin-bottom: 12px;">
-                <div><strong>Día actual:</strong> <?php echo intval($dia_avance_renovacion); ?></div>
-                <div><strong>Desde día:</strong> 25</div>
-                <div><strong>Deuda actual:</strong> $<?php echo number_format($deuda_actual_renovacion, 2); ?></div>
-                <div><strong>Nuevo plazo:</strong> 30 días</div>
-            </div>
-
-            <?php if ($solicitud_pendiente_renovacion): ?>
-                <div class="alert alert-warning" style="margin: 0;">
-                    Ya existe una solicitud pendiente de autorización (Solicitud #<?php echo intval($solicitud_pendiente_renovacion['id'] ?? 0); ?>).
-                </div>
-            <?php elseif ($puede_solicitar_renovacion_actual): ?>
-                <a href="<?php echo BASE_URL; ?>controllers/TrabajadorController.php?action=solicitar_renovacion&id=<?php echo intval($tarjeta['id']); ?>" class="btn btn-primary">
-                    Solicitar renovación
-                </a>
-            <?php else: ?>
-                <div class="alert alert-info" style="margin: 0;">
-                    La renovación se habilita a partir del día 25 y solo si la tarjeta aún tiene saldo pendiente.
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-    <?php endif; ?>
-
-    <?php if ($es_tarjeta_semanal && $tarjeta_activa): ?>
-    <div class="card" style="margin-bottom: 16px;">
-        <div class="card-header">
-            <h2>Renovación de Tarjeta Semanal</h2>
-        </div>
-        <div class="card-body">
-            <div class="info-grid" style="margin-bottom: 12px;">
-                <div><strong>Día actual:</strong> <?php echo intval($dia_avance_renovacion); ?></div>
-                <div><strong>Restricción:</strong> Ninguna (siempre disponible)</div>
-                <div><strong>Deuda actual:</strong> $<?php echo number_format($deuda_actual_renovacion, 2); ?></div>
-                <div><strong>Nuevo plazo:</strong> A acordar</div>
-            </div>
-
-            <?php if ($solicitud_pendiente_renovacion): ?>
-                <div class="alert alert-warning" style="margin: 0;">
-                    Ya existe una solicitud pendiente de autorización (Solicitud #<?php echo intval($solicitud_pendiente_renovacion['id'] ?? 0); ?>).
-                </div>
-            <?php elseif ($puede_solicitar_renovacion_actual): ?>
-                <a href="<?php echo BASE_URL; ?>controllers/TrabajadorController.php?action=solicitar_renovacion&id=<?php echo intval($tarjeta['id']); ?>" class="btn btn-primary">
-                    Solicitar renovación
-                </a>
-            <?php else: ?>
-                <div class="alert alert-info" style="margin: 0;">
-                    La renovación está disponible en cualquier momento si la tarjeta aún tiene saldo pendiente.
+                    La renovación se habilita a partir del día <?php echo intval($dia_minimo_renovacion); ?> y solo si la tarjeta aún tiene saldo pendiente.
                 </div>
             <?php endif; ?>
         </div>

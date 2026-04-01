@@ -188,7 +188,6 @@ switch ($action) {
                 'monto_nuevo'          => floatval($_POST['monto_nuevo'] ?? 0),
                 'interes'              => floatval($_POST['interes'] ?? 0),
                 'total_prestamo_nuevo' => floatval($_POST['total_prestamo_nuevo'] ?? 0),
-                'dias_pagar_semanal'   => intval($_POST['dias_pagar_semanal'] ?? 0),
             ];
 
             $resultado = crearSolicitudRenovacion($id, $datosRenovacion, $trabajador_id);
