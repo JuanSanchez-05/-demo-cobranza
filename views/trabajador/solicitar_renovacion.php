@@ -62,6 +62,23 @@ $nuevo_plazo_renovacion = intval($config_renovacion['nuevo_plazo'] ?? 0);
                 </div>
             </div>
 
+            <?php if (($tarjeta['tipo'] ?? '') === 'antigua_semanal'): ?>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Día de Cobro Semanal</label>
+                    <select name="dia_cobro" required>
+                        <?php
+                        $dias_semana = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+                        $dia_cobro_actual = $tarjeta['dia_cobro'] ?? '';
+                        foreach ($dias_semana as $d):
+                        ?>
+                        <option value="<?php echo $d; ?>" <?php echo $dia_cobro_actual === $d ? 'selected' : ''; ?>><?php echo $d; ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div class="form-row">
                 <div class="form-group">
                     <label>Dirección</label>
@@ -144,6 +161,21 @@ $nuevo_plazo_renovacion = intval($config_renovacion['nuevo_plazo'] ?? 0);
                 <small class="text-muted">Total que pagará el cliente en <?php echo $nuevo_plazo_renovacion; ?> días (predeterminado: monto nuevo + interés; editable).</small>
             </div>
 
+            <?php if (($tarjeta['tipo'] ?? '') === 'antigua_semanal'): ?>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Semanas del nuevo préstamo</label>
+                    <input type="number" name="semanas_nueva" id="semanas_nueva" min="1" step="1" value="<?php echo intval($tarjeta['semanas_pagar'] ?? 1); ?>" required>
+                    <small class="text-muted">Número de semanas para liquidar el préstamo.</small>
+                </div>
+                <div class="form-group">
+                    <label>Pago semanal estimado</label>
+                    <input type="text" id="pago_semanal_est" readonly>
+                    <small class="text-muted">Total ÷ semanas (referencia).</small>
+                </div>
+            </div>
+            <?php endif; ?>
+
             <div class="form-actions">
                 <button type="submit" class="btn btn-success">Enviar Solicitud a Admin</button>
                 <a href="<?php echo BASE_URL; ?>controllers/TrabajadorController.php?action=detalle_tarjeta&id=<?php echo intval($tarjeta['id']); ?>" class="btn btn-secondary">Cancelar</a>
@@ -154,16 +186,16 @@ $nuevo_plazo_renovacion = intval($config_renovacion['nuevo_plazo'] ?? 0);
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const deuda = <?php echo json_encode(round($deuda, 2)); ?>;
-    const montoNuevoInput    = document.getElementById('monto_nuevo');
-    const interesInput       = document.getElementById('interes');
-    const netoInput          = document.getElementById('neto_entregar');
-    const totalInput         = document.getElementById('total_prestamo_nuevo');
+    const deuda        = <?php echo json_encode(round($deuda, 2)); ?>;
+    const esSemanal    = <?php echo json_encode(($tarjeta['tipo'] ?? '') === 'antigua_semanal'); ?>;
+    const montoNuevoInput  = document.getElementById('monto_nuevo');
+    const interesInput     = document.getElementById('interes');
+    const netoInput        = document.getElementById('neto_entregar');
+    const totalInput       = document.getElementById('total_prestamo_nuevo');
+    const semanasInput     = esSemanal ? document.getElementById('semanas_nueva') : null;
+    const pagoSemEst       = esSemanal ? document.getElementById('pago_semanal_est') : null;
 
-    // Marcar el campo total como editado manualmente cuando el usuario lo toca
-    totalInput.addEventListener('input', function() {
-        totalInput.dataset.editado = '1';
-    });
+    totalInput.addEventListener('input', function() { totalInput.dataset.editado = '1'; });
 
     function recalcular() {
         const montoNuevo = parseFloat(montoNuevoInput.value) || 0;
@@ -173,14 +205,21 @@ document.addEventListener('DOMContentLoaded', function() {
         netoInput.value = '$' + neto.toFixed(2);
         netoInput.style.color = neto < 0 ? '#dc3545' : '#28a745';
 
-        // Actualizar el total sólo si el usuario no lo ha editado manualmente
         if (!totalInput.dataset.editado) {
             totalInput.value = (montoNuevo + interes).toFixed(2);
+        }
+
+        if (esSemanal && semanasInput && pagoSemEst) {
+            const total   = parseFloat(totalInput.value) || 0;
+            const semanas = parseInt(semanasInput.value) || 1;
+            pagoSemEst.value = '$' + (total / semanas).toFixed(2);
         }
     }
 
     montoNuevoInput.addEventListener('input', recalcular);
     interesInput.addEventListener('input', recalcular);
+    totalInput.addEventListener('input', recalcular);
+    if (semanasInput) semanasInput.addEventListener('input', recalcular);
     recalcular();
 });
 </script>

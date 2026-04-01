@@ -1781,6 +1781,15 @@ function obtenerConfiguracionRenovacionPorTipo($tipo) {
         ];
     }
 
+    if ($tipo === 'antigua_semanal') {
+        return [
+            'permitido' => true,
+            'dia_minimo' => 0,   // libre: sin restricción de semana mínima
+            'nuevo_plazo' => 0,  // dinámico: lo fija semanas_nueva
+            'descripcion' => 'Tarjeta semanal'
+        ];
+    }
+
     return [
         'permitido' => false,
         'dia_minimo' => PHP_INT_MAX,
@@ -1894,9 +1903,13 @@ function crearSolicitudRenovacion($tarjeta_origen_id, $datos_nueva, $solicitante
         'total_prestamo_nuevo' => round($total_prestamo_nuevo, 2),
         'prestamo_nuevo' => round($total_prestamo_nuevo, 2), // compatibilidad legacy
         'neto_al_solicitar' => round($neto_entregar, 2),
+        'semanas_nueva' => ($tarjeta['tipo'] ?? '') === 'antigua_semanal'
+            ? max(1, intval($datos_nueva['semanas_nueva'] ?? ($tarjeta['semanas_pagar'] ?? 1)))
+            : null,
         'datos_nueva' => [
             'nombre' => trim($datos_nueva['nombre'] ?? ($tarjeta['nombre'] ?? '')),
             'fecha' => $datos_nueva['fecha'] ?? date('Y-m-d'),
+            'dia_cobro' => trim($datos_nueva['dia_cobro'] ?? ($tarjeta['dia_cobro'] ?? '')),
             'hora_cobro' => trim($datos_nueva['hora_cobro'] ?? ($tarjeta['hora_cobro'] ?? '')),
             'telefono' => trim($datos_nueva['telefono'] ?? ($tarjeta['telefono'] ?? '')),
             'direccion' => trim($datos_nueva['direccion'] ?? ($tarjeta['direccion'] ?? '')),
@@ -2008,11 +2021,27 @@ function aprobarSolicitudRenovacion($solicitud_id, $admin_id) {
     }
 
     $nueva_data = $solicitud['datos_nueva'] ?? [];
-    $nueva_data['tipo'] = 'nueva';
-    // La nueva tarjeta usa el monto total acordado (capital + interés).
-    $nueva_data['prestamo'] = round($total_prestamo_nuevo, 2);
-    $nueva_data['dias_pagar'] = intval($config_renovacion['nuevo_plazo']);
-    $nueva_data['pago'] = round($total_prestamo_nuevo / max(1, intval($config_renovacion['nuevo_plazo'])), 2);
+    $tipo_origen = $tarjeta_origen['tipo'] ?? 'nueva';
+
+    if ($tipo_origen === 'antigua_semanal') {
+        // Renovación semanal: la nueva tarjeta es también antigua_semanal
+        $semanas_nueva = max(1, intval($solicitud['semanas_nueva'] ?? $tarjeta_origen['semanas_pagar'] ?? 1));
+        $nueva_data['tipo'] = 'antigua_semanal';
+        $nueva_data['cantidad_prestamo'] = round($monto_nuevo, 2);
+        // cargo = total - monto_nuevo para que agregarTarjeta calcule total correcto
+        $nueva_data['cargo_prestamo'] = round($total_prestamo_nuevo - $monto_nuevo, 2);
+        $nueva_data['semanas_pagar'] = $semanas_nueva;
+        // Conservar dia_cobro de la tarjeta origen si no viene en datos_nueva
+        if (empty($nueva_data['dia_cobro'])) {
+            $nueva_data['dia_cobro'] = $tarjeta_origen['dia_cobro'] ?? null;
+        }
+    } else {
+        // Renovación nueva (21 días) o diaria (30 días) → tipo 'nueva'
+        $nueva_data['tipo'] = 'nueva';
+        $nueva_data['prestamo'] = round($total_prestamo_nuevo, 2);
+        $nueva_data['dias_pagar'] = intval($config_renovacion['nuevo_plazo']);
+        $nueva_data['pago'] = round($total_prestamo_nuevo / max(1, intval($config_renovacion['nuevo_plazo'])), 2);
+    }
     $nueva_data['fecha'] = !empty($nueva_data['fecha']) ? $nueva_data['fecha'] : date('Y-m-d');
     $nueva_data['promotor_id'] = $tarjeta_origen['promotor_id'] ?? null;
 
