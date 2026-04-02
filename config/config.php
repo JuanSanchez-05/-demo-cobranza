@@ -35,23 +35,56 @@ class Database {
     private $port;
     private $driver;
     private $conn;
+
+    private function loadFromDatabaseUrl($url) {
+        if (empty($url)) {
+            return false;
+        }
+
+        $parts = parse_url($url);
+        if ($parts === false || !isset($parts['scheme'])) {
+            return false;
+        }
+
+        $scheme = strtolower($parts['scheme']);
+        if ($scheme !== 'postgres' && $scheme !== 'postgresql' && $scheme !== 'pgsql' && $scheme !== 'mysql') {
+            return false;
+        }
+
+        $this->driver = ($scheme === 'mysql') ? 'mysql' : 'pgsql';
+        $this->host = $parts['host'] ?? 'localhost';
+        $this->port = isset($parts['port']) ? (string)$parts['port'] : ($this->driver === 'pgsql' ? '5432' : '3307');
+        $this->username = $parts['user'] ?? '';
+        $this->password = $parts['pass'] ?? '';
+        $this->db_name = isset($parts['path']) ? ltrim($parts['path'], '/') : '';
+
+        return true;
+    }
     
     public function __construct() {
-        // Detectar si estamos en producción (PostgreSQL) o local (MySQL)
+        // Priorizar URL completa de conexión (Railway suele proveer DATABASE_URL)
+        $databaseUrl = getenv('DATABASE_URL') ?: getenv('DATABASE_PUBLIC_URL');
+        if ($this->loadFromDatabaseUrl($databaseUrl)) {
+            return;
+        }
+
         $this->host = getenv('DB_HOST') ?: 'localhost';
         $this->db_name = getenv('DB_NAME') ?: 'cobranza_db';
         $this->username = getenv('DB_USER') ?: 'root';
         $this->password = getenv('DB_PASSWORD') ?: '';
-        $this->port = getenv('DB_PORT') ?: '3307';
-        
+
         // Detectar PostgreSQL: render.com, railway, rlwy.net o puerto 5432
-        if (strpos($this->host, 'render.com') !== false || 
+        $isPostgresHost = strpos($this->host, 'render.com') !== false ||
             strpos($this->host, 'railway') !== false ||
-            strpos($this->host, '.rlwy.net') !== false ||
-            $this->port == '5432') {
+            strpos($this->host, '.rlwy.net') !== false;
+
+        $requestedPort = getenv('DB_PORT');
+        if ($isPostgresHost || $requestedPort === '5432') {
             $this->driver = 'pgsql';
+            $this->port = $requestedPort ?: '5432';
         } else {
             $this->driver = 'mysql';
+            $this->port = $requestedPort ?: '3307';
         }
     }
     
