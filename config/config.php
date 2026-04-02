@@ -35,6 +35,7 @@ class Database {
     private $port;
     private $driver;
     private $conn;
+    private $schemaCheckMarker;
 
     private function loadFromDatabaseUrl($url) {
         if (empty($url)) {
@@ -62,6 +63,8 @@ class Database {
     }
     
     public function __construct() {
+        $this->schemaCheckMarker = sys_get_temp_dir() . '/cobranza_schema_checked.flag';
+
         // Priorizar URL completa de conexión (Railway suele proveer DATABASE_URL)
         $databaseUrl = getenv('DATABASE_URL') ?: getenv('DATABASE_PUBLIC_URL');
         if ($this->loadFromDatabaseUrl($databaseUrl)) {
@@ -127,11 +130,7 @@ class Database {
             
             $this->conn = new PDO($dsn, $this->username, $this->password, $options);
 
-            if ($this->driver === 'pgsql') {
-                $this->ensurePostgresUsuariosCompatibility();
-            }
-
-            $this->ensurePagosCompatibility();
+            $this->runCompatibilityChecksIfNeeded();
             
             // Configuraciones específicas de MySQL
             if ($this->driver === 'mysql') {
@@ -151,6 +150,24 @@ class Database {
         }
         
         return $this->conn;
+    }
+
+    private function runCompatibilityChecksIfNeeded() {
+        // En producción, evita ejecutar ALTER/UPDATE en cada request.
+        // Se ejecuta una vez por ciclo de vida del contenedor.
+        if ($this->driver === 'pgsql') {
+            if (is_file($this->schemaCheckMarker)) {
+                return;
+            }
+
+            $this->ensurePostgresUsuariosCompatibility();
+            $this->ensurePagosCompatibility();
+            @file_put_contents($this->schemaCheckMarker, (string)time());
+            return;
+        }
+
+        // En local (MySQL) mantenemos el comportamiento actual.
+        $this->ensurePagosCompatibility();
     }
     
     private function createDatabaseIfNotExists() {
