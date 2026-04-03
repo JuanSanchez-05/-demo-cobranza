@@ -212,6 +212,7 @@ switch ($action) {
             $pagos = $_POST['pagos'] ?? [];
             $exitosos = 0;
             $errores = 0;
+            $invalidos = 0;
             
             foreach ($pagos as $pago_data) {
                 $tarjeta_id = intval($pago_data['tarjeta_id'] ?? 0);
@@ -219,14 +220,44 @@ switch ($action) {
                 $monto = floatval($pago_data['monto'] ?? 0);
                 
                 if ($tarjeta_id > 0 && $dia > 0) {
-                    if ($monto >= 0) {
-                        $resultado = registrarPago($tarjeta_id, $dia, $monto, $trabajador_id);
-                        if ($resultado) {
-                            $exitosos++;
-                        } else {
-                            $errores++;
-                        }
+                    if ($monto < 0) {
+                        $invalidos++;
+                        continue;
                     }
+
+                    // Validación adicional para evitar sobrecobros por captura errónea.
+                    $tarjeta = obtenerTarjetaPorId($tarjeta_id);
+                    if (!$tarjeta) {
+                        $invalidos++;
+                        continue;
+                    }
+
+                    $pdo = getDB();
+                    $stmt_validar = $pdo->prepare("SELECT saldo FROM pagos WHERE tarjeta_id = ? AND dia = ?");
+                    $stmt_validar->execute([$tarjeta_id, $dia]);
+                    $pago_validar = $stmt_validar->fetch();
+
+                    if (!$pago_validar) {
+                        $invalidos++;
+                        continue;
+                    }
+
+                    $saldo_pendiente = floatval($pago_validar['saldo']);
+                    $monto_maximo = obtenerMontoMaximoPermitidoDiaTarjeta($tarjeta, $dia, $saldo_pendiente);
+
+                    if ($monto > $monto_maximo || $monto > $saldo_pendiente) {
+                        $invalidos++;
+                        continue;
+                    }
+
+                    $resultado = registrarPago($tarjeta_id, $dia, $monto, $trabajador_id);
+                    if ($resultado) {
+                        $exitosos++;
+                    } else {
+                        $errores++;
+                    }
+                } else {
+                    $invalidos++;
                 }
             }
             
@@ -234,8 +265,11 @@ switch ($action) {
             if ($errores > 0) {
                 $mensaje .= ", ❌ {$errores} errores";
             }
+            if ($invalidos > 0) {
+                $mensaje .= ", ⚠ {$invalidos} descartados por datos inválidos";
+            }
             
-            header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=dashboard&mensaje=' . urlencode($mensaje));
+            header('Location: ' . BASE_URL . 'controllers/TrabajadorController.php?action=registrar_cobros&mensaje=' . urlencode($mensaje));
             exit;
         }
         

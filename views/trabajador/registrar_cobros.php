@@ -37,7 +37,7 @@ include __DIR__ . '/../layouts/header.php';
                 <div class="table-container">
                     <table class="data-table">
                         <thead>
-                            <tr>
+                            <tr class="cobro-row" data-cliente="<?php echo htmlspecialchars($cobro['nombre'], ENT_QUOTES, 'UTF-8'); ?>" data-esperado="<?php echo number_format($monto_esperado, 2, '.', ''); ?>">
                                 <th>Cliente</th>
                                 <th>Dirección</th>
                                 <th>Tipo</th>
@@ -93,7 +93,7 @@ include __DIR__ . '/../layouts/header.php';
                                            min="0" 
                                            max="<?php echo $monto_esperado; ?>"
                                            value="<?php echo $ya_cobrado > 0 ? '' : $monto_esperado; ?>"
-                                           class="form-control form-control-sm">
+                                           class="form-control form-control-sm monto-input">
                                     <input type="hidden" name="pagos[<?php echo $index; ?>][tarjeta_id]" value="<?php echo $cobro['id']; ?>">
                                     <input type="hidden" name="pagos[<?php echo $index; ?>][dia]" value="<?php echo $cobro['dia']; ?>">
                                 </td>
@@ -220,6 +220,51 @@ document.getElementById('formCobros').addEventListener('submit', function(e) {
     if (checkboxes.length === 0) {
         e.preventDefault();
         alert('Por favor seleccione al menos un cobro para registrar.');
+        return false;
+    }
+
+    let total = 0;
+    const resumen = [];
+
+    for (const cb of checkboxes) {
+        const fila = cb.closest('tr');
+        const nombre = fila ? (fila.dataset.cliente || 'Cliente') : 'Cliente';
+        const esperado = fila ? parseFloat(fila.dataset.esperado || '0') : 0;
+        const inputMonto = fila ? fila.querySelector('.monto-input') : null;
+        const monto = inputMonto ? parseFloat(inputMonto.value || '0') : 0;
+
+        if (!inputMonto || Number.isNaN(monto) || monto < 0) {
+            e.preventDefault();
+            alert('Hay montos inválidos en los cobros seleccionados. Verifique antes de guardar.');
+            return false;
+        }
+
+        if (monto > esperado + 0.009) {
+            e.preventDefault();
+            alert('Un monto seleccionado excede el monto esperado del día. Revise antes de guardar.');
+            return false;
+        }
+
+        total += monto;
+        resumen.push(`${nombre}: $${monto.toFixed(2)}`);
+    }
+
+    const vistaPrevia = resumen.slice(0, 5).join('\n');
+    const mensajeConfirmacion =
+        `Se registrarán ${checkboxes.length} cobros por un total de $${total.toFixed(2)}.\n\n` +
+        `${vistaPrevia}${resumen.length > 5 ? '\n...' : ''}\n\n` +
+        '¿Desea continuar?';
+
+    if (!confirm(mensajeConfirmacion)) {
+        e.preventDefault();
+        return false;
+    }
+
+    // Segunda confirmación para evitar registros por clic accidental.
+    const confirmacionManual = prompt('Escriba CONFIRMAR para guardar los cobros seleccionados:');
+    if ((confirmacionManual || '').trim().toUpperCase() !== 'CONFIRMAR') {
+        e.preventDefault();
+        alert('Operación cancelada. No se guardaron cobros.');
         return false;
     }
     
